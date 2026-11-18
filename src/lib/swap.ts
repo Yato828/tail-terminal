@@ -1,3 +1,5 @@
+import { tailBackendEnabled } from "../services/backend/config";
+import {EXECUTION_POLICY} from '../features/v2/trading/policy';
 import { WSOL } from "./const";
 import { isPoolAddr } from "./axiom";
 import { getJson } from "./http";
@@ -118,6 +120,7 @@ export async function executeSwap(
   quote: QuoteHit,
   onSent: (signature: string) => void,
 ) {
+  if (!EXECUTION_POLICY.executionEnabled || tailBackendEnabled()) throw new Error("TAIL is quote-only. Transaction execution is disabled until DEX instruction validation is complete.");
   const provider = getSolana();
   const account = walletSnap().account;
   if (!provider || !account) throw new Error("Connect a Solana wallet");

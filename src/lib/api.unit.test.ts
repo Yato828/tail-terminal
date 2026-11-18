@@ -106,14 +106,14 @@ describe("Solana trade and holder semantics", () => {
           {
             data: {
               parsed: {
-                info: { owner: "So11111111111111111111111111111111111111112" },
+                info: { owner: "So11111111111111111111111111111111111111112", mint: USDC },
               },
             },
           },
           {
             data: {
               parsed: {
-                info: { owner: "So11111111111111111111111111111111111111112" },
+                info: { owner: "So11111111111111111111111111111111111111112", mint: USDC },
               },
             },
           },
@@ -125,5 +125,11 @@ describe("Solana trade and holder semantics", () => {
         value: "3.5",
       },
     ]);
+  });
+
+  it("rejects largest accounts whose parsed mint differs from the selected token", async () => {
+    vi.mocked(getJson).mockRejectedValue(new Error("Indexed source unavailable"));
+    vi.mocked(rpc).mockResolvedValueOnce({value:[{address:"AccountWrongMint",amount:"1000000",decimals:6}]}).mockResolvedValueOnce({value:[{data:{parsed:{info:{owner:USDC,mint:USDC}}}}]});
+    await expect(fetchHolders(WSOL)).rejects.toThrow("Holder sources are unavailable");
   });
 });

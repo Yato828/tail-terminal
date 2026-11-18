@@ -707,7 +707,7 @@ function Terminal({
               <div>
                 <button onClick={() => openModule("swap")}>Buy / Swap</button>
                 <button onClick={() => openModule("xray")}>Analyze</button>
-                <button onClick={() => openModule("astra")}>Ask Astra</button>
+                <button onClick={() => openModule("astra")}>Ask Fable 5.2</button>
               </div>
             </div>
           )}
@@ -1279,7 +1279,7 @@ function Terminal({
               ? `Price updated ${new Date(updated).toLocaleTimeString()}`
               : "Select a market to begin")}
         </span>
-        <span>PART / ASTRA</span>
+        <span>PART / FABLE 5.2</span>
       </footer>
     </div>
   );

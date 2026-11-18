@@ -1,0 +1,64 @@
+
+> tail-backend-v1@1.0.0 test
+> node --test
+
+TAP version 13
+# Subtest: validation rejects non-base58, URLs, bad swap amounts
+ok 1 - validation rejects non-base58, URLs, bad swap amounts
+  ---
+  duration_ms: 1.461321
+  type: 'test'
+  ...
+# Subtest: market normalization, de-duplication, filters avoid missing fields
+ok 2 - market normalization, de-duplication, filters avoid missing fields
+  ---
+  duration_ms: 9.252539
+  type: 'test'
+  ...
+# Subtest: Jupiter is quote-only; malicious transaction fields never leak to frontend
+ok 3 - Jupiter is quote-only; malicious transaction fields never leak to frontend
+  ---
+  duration_ms: 1.391967
+  type: 'test'
+  ...
+# Subtest: GeckoTerminal OHLCV sorts history and does not fabricate candles
+ok 4 - GeckoTerminal OHLCV sorts history and does not fabricate candles
+  ---
+  duration_ms: 2.501919
+  type: 'test'
+  ...
+# Subtest: wallet RPC aggregates Token and Token-2022 without claiming PnL
+ok 5 - wallet RPC aggregates Token and Token-2022 without claiming PnL
+  ---
+  duration_ms: 3.327231
+  type: 'test'
+  ...
+# Subtest: anonymous watchlists and alerts persist, no wallet-signing identities
+ok 6 - anonymous watchlists and alerts persist, no wallet-signing identities
+  ---
+  duration_ms: 15.831559
+  type: 'test'
+  ...
+# Subtest: Fable only calls provider with key, returns real provider text
+ok 7 - Fable only calls provider with key, returns real provider text
+  ---
+  duration_ms: 1.264815
+  type: 'test'
+  ...
+# Subtest: HTTP: health, read-only market, anonymous watchlists, and no execution
+ok 8 - HTTP: health, read-only market, anonymous watchlists, and no execution
+  ---
+  duration_ms: 56.692167
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 259.240211
+
+PASS: 8/8 local tests (mocked upstream providers).

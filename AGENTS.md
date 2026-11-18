@@ -1,8 +1,24 @@
-# PART — Solana trader deck
+# TAIL — Solana mainnet workspace
+
+## TAIL 2.0 implementation rules
+
+The TAIL 2.0 user request supersedes older PART requirements. Preserve the approved warm black/orange UI, star skiff, branding and supplied 2D mascot. Do not deploy this new version, change other Vercel projects, enable paid services or submit real transactions without a new explicit user instruction. Work free first; missing evidence is unavailable, never zero or invented.
+
+Native parallel agents are explicitly requested. The host allows four active agents including the lead: run at most three workers simultaneously. Use isolated worktrees under `.tail-v2-worktrees/`; the lead owns integration and shared contracts. No two writers may edit the same file concurrently. Worker handoffs must list files, executed tests, limitations and exported integration points. QA reviews completed integrations independently.
+
+File ownership for the first implementation group:
+- Market Data Engineer: `src/features/v2/market/`, `src/features/tail/BackendDiscovery.tsx`; market diagnostics, discovery, filter engine and token comparison.
+- Wallet & Intelligence: `src/features/v2/intelligence/`, `src/features/intelligence/`, `src/components/BubbleMap.tsx`, `src/lib/bubble.ts`, `src/lib/holders.ts`; tracking, overlap, security, portfolio accounting and token memory.
+- Terminal Features: `src/features/v2/charts/`, `src/components/Chart.tsx`; local indicators, chart modes and independent comparison charts. Existing history and source units must survive.
+- Architect: shared contracts, module registration, workspace, alerts, journal, backend/API integration, Fable, packaging and release reports.
+- Extension & Social: `extension/`, `src/features/v2/social/`, extension entry points after an explicit handoff from the lead.
+- QA: review and verification; no overlapping implementation edits without ownership reassignment.
+
+Use targeted browser tests with distinct output directories if jobs overlap. Do not run paid AI calls during verification. Keep fixture evidence separate from live-source verification. Secrets and private baseline archives must never be committed or packaged.
 
 User requested a full Solana migration. All discovery, addresses, charts, swaps and explorer links must use Solana mainnet. Preserve base58 address case. No stock registry or EVM integrations.
 
-All product copy, documentation, assistant prompts and future modules must describe PART as a Solana mainnet workspace. Robinhood Chain (4663), EVM/ERC-20 and stock requirements in `PART_CODEX_MASTER_PROMPT.md` are outdated; the user's Solana requirements take precedence.
+All product copy, documentation, assistant prompts and future modules must describe TAIL as a Solana mainnet workspace. Robinhood Chain (4663), EVM/ERC-20 and stock requirements in `PART_CODEX_MASTER_PROMPT.md` are outdated; the user's Solana requirements take precedence.
 
 Run `npm install && npm run dev`. Local URL: http://localhost:4664/.
 

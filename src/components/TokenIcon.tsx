@@ -25,6 +25,7 @@ function MintIcon({ coin }: { coin: AxiomCoin }) {
   }, [coin.address, primary, failed]);
   return src ? (
     <img
+      className="token-icon"
       src={src}
       alt={`${coin.symbol} logo`}
       loading="lazy"
@@ -33,7 +34,7 @@ function MintIcon({ coin }: { coin: AxiomCoin }) {
     />
   ) : (
     <span
-      className="coin-fallback"
+      className="coin-fallback token-icon"
       aria-label={`${coin.symbol} icon unavailable`}
     >
       {coin.symbol.slice(0, 2)}

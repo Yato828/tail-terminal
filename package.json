@@ -1,13 +1,15 @@
 {
   "name": "part",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "build": "vite build",
+    "dev": "VITE_TAIL_STANDALONE=1 vite --host",
+    "dev:legacy": "vite --host --mode legacy",
+    "build": "VITE_TAIL_STANDALONE=1 vite build",
     "preview": "vite preview --host",
     "test": "vitest run",
+    "test:mascot": "node --test src/mascot/tests/motion.node.mjs",
     "typecheck": "tsc --noEmit",
     "ext": "vite build --config vite.ext.config.ts",
     "ext:dev": "vite --config vite.ext.config.ts --host",
@@ -15,7 +17,11 @@
     "test:browser": "playwright test",
     "test:extension": "npm run ext && node scripts/extension-terminal-smoke.mjs",
     "test:live": "PART_LIVE_TESTS=1 vitest run",
-    "test:smoke": "node scripts/browser-smoke.mjs"
+    "test:smoke": "node scripts/browser-smoke.mjs",
+    "backend:start": "npm --prefix backend/tail-v1 start",
+    "backend:test": "npm --prefix backend/tail-v1 test",
+    "backend:smoke": "npm --prefix backend/tail-v1 run smoke",
+    "dev:backend": "VITE_TAIL_API_URL=/tail-api vite --host --mode backend-v1"
   },
   "dependencies": {
     "@solana/wallet-standard-features": "^1.5.0",

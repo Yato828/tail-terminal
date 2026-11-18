@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { tailBackendEnabled } from "../services/backend/config";
+import { tailApi, formatAtomic } from "../services/backend/client";
+import type { JupiterQuote } from "../services/backend/contracts";
+import { useEffect, useRef, useState } from "react";
 import {
   connectWallet,
   disconnectWallet,
@@ -11,7 +14,11 @@ import type { AxiomCoin } from "../lib/axiom";
 import { isExtension } from "../lib/env";
 import { fmtQty, shortAddr } from "../lib/format";
 import { usePreferences } from "../features/preferences/preferences";
+import { readLocal, saveLocal } from "../lib/validation";
+import { mascot } from "../mascot/events";
 import { walletWebsiteHref } from "../lib/siteLink";
+import { useProductBrand } from "../design-system/brand";
+import {EXECUTION_POLICY} from '../features/v2/trading/policy';
 
 export function WalletChip() {
   const w = useWallet();
@@ -38,16 +45,36 @@ export function WalletChip() {
   );
 }
 export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
+  const brand = useProductBrand();
+  const v1 = tailBackendEnabled();
   const w = useWallet();
   const { preferences } = usePreferences();
-  const [amount, setAmount] = useState("0.1");
-  const [slippage, setSlippage] = useState(100);
+  const [amount, setAmount] = useState(() =>
+    readLocal(
+      "tail.swap.amount.v1",
+      (v) =>
+        typeof v === "string" && /^\d{1,8}(\.\d{0,9})?$/.test(v) ? v : "0.1",
+      "0.1",
+    ),
+  );
+  const [slippage, setSlippage] = useState(() =>
+    readLocal(
+      "tail.swap.slippage.v1",
+      (v) => ([50, 100, 200, 500].includes(Number(v)) ? Number(v) : 100),
+      100,
+    ),
+  );
   const [quote, setQuote] = useState<QuoteHit | null>(null);
+  const [readQuote, setReadQuote] = useState<JupiterQuote | null>(null);
+  const generation = useRef(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [signature, setSignature] = useState("");
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    generation.current++;
+    setBusy(false);
+    setReadQuote(null);
     setQuote(null);
     setMessage("");
     setSignature("");
@@ -56,23 +83,50 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+  useEffect(() => {
+    saveLocal("tail.swap.amount.v1", amount);
+    saveLocal("tail.swap.slippage.v1", slippage);
+  }, [amount, slippage]);
   const expired = !!quote && now - quote.createdAt > 45000;
   const getQuote = async () => {
     if (!coin) return;
+    const version = ++generation.current;
     setBusy(true);
+    setReadQuote(null);
     setQuote(null);
     setMessage("Finding route…");
     try {
-      setQuote(await quoteSol(coin.address, amount, slippage));
-      setMessage("");
+      if (v1) {
+        const capabilities = await tailApi.capabilities();
+        if (!capabilities.quote)
+          throw new Error("Backend quotes are unavailable.");
+        const result = await tailApi.quote(
+          WSOL,
+          coin.address,
+          parseSolIn(amount).toString(),
+        );
+        if (version === generation.current) {
+          setReadQuote(result);
+          setMessage(
+            "Quote only · transaction signing and execution are disabled.",
+          );
+        }
+      } else {
+        const result = await quoteSol(coin.address, amount, slippage);
+        if (version === generation.current) {
+          setQuote(result);
+          setMessage("");
+        }
+      }
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Quote unavailable");
+      if (version === generation.current)
+        setMessage(e instanceof Error ? e.message : "Quote unavailable");
     } finally {
-      setBusy(false);
+      if (version === generation.current) setBusy(false);
     }
   };
   const swap = async () => {
-    if (!quote) return;
+    if (!quote || v1 || !EXECUTION_POLICY.executionEnabled) return;
     setBusy(true);
     setMessage("Review the transaction in your wallet");
     try {
@@ -81,10 +135,12 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
         setMessage("Submitted · waiting for confirmation…");
       });
       setMessage("Swap confirmed");
+      mascot.notify("transaction:confirmed");
       setQuote(null);
       void refreshAccount();
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Swap rejected");
+      mascot.error();
     } finally {
       setBusy(false);
     }
@@ -100,7 +156,7 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
         <b>Swap</b>
         <span>SOL → {coin?.symbol ?? "token"}</span>
       </div>
-      {isExtension() && (
+      {isExtension() && !v1 && (
         <p className="data-note">
           Quotes are available here. Connect your wallet and approve swaps on{" "}
           <a
@@ -109,7 +165,7 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
             rel="noopener noreferrer"
             className="extension-wallet-handoff"
           >
-            the PART website ↗
+            the {brand.product} website ↗
           </a>
           .
         </p>
@@ -133,9 +189,7 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
           {!w.wallets.length && (
             <p className="data-note">
               No compatible wallet found. Install a Solana Wallet Standard
-              wallet such as Phantom, Solflare, Backpack, or MetaMask with
-              Solana enabled, then refresh. Rabby currently exposes EVM accounts
-              and cannot sign this Solana swap.
+              wallet such as Phantom or Solflare, then refresh.
             </p>
           )}
         </div>
@@ -161,25 +215,70 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
         </div>
       </label>
       <div className="swap-presets">
-        {["0.1", "0.5", "1", "5"].map((v) => (
+        {["0.1", "0.5", "1", "2", "5"].map((v) => (
           <button key={v} disabled={busy} onClick={() => setAmount(v)}>
             {v}
           </button>
         ))}
       </div>
+      {!quote && !readQuote && (
+        <div className="quote-placeholder">
+          <span>You receive (quote)</span>
+          <b>Request a route</b>
+        </div>
+      )}
       <label className="swap-slippage">
         Slippage
         <select
-          value={slippage}
-          disabled={busy}
+          value={v1 ? "unavailable" : slippage}
+          disabled={busy || v1}
+          title={
+            v1
+              ? "V1 quotes are non-executable and do not accept a custom slippage setting."
+              : undefined
+          }
           onChange={(e) => setSlippage(Number(e.target.value))}
         >
-          <option value={50}>0.5%</option>
-          <option value={100}>1%</option>
-          <option value={200}>2%</option>
-          <option value={500}>5%</option>
+          {v1 ? (
+            <option value="unavailable">Not applied · quote only</option>
+          ) : (
+            <>
+              <option value={50}>0.5%</option>
+              <option value={100}>1%</option>
+              <option value={200}>2%</option>
+              <option value={500}>5%</option>
+            </>
+          )}
         </select>
       </label>
+      {readQuote && (
+        <div className="quote-details">
+          <span>
+            Quoted output{" "}
+            <b>
+              {formatAtomic(readQuote.outAmount!, readQuote.outputDecimals)}{" "}
+              {readQuote.outputDecimals === null ? "" : coin?.symbol}
+            </b>
+          </span>
+          <span>
+            Route <b>{readQuote.router ?? "Unknown"} · Jupiter</b>
+          </span>
+          <span>
+            Provider fee{" "}
+            <b>
+              {readQuote.feeBps == null
+                ? "Unavailable"
+                : `${readQuote.feeBps} bps`}
+            </b>
+          </span>
+          <small>
+            {Date.now() - readQuote.createdAt > 45000
+              ? "Stale quote · refresh"
+              : `Observed ${readQuote.asOf}`}{" "}
+            · Not executable
+          </small>
+        </div>
+      )}
       {quote && (
         <div className="quote-details">
           <span>
@@ -231,20 +330,22 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Connect wallet on PART ↗
+          Open on TAIL ↗
         </a>
       ) : quote ? (
         <button
           className="primary-action"
-          disabled={busy || expired || !w.account || insufficient}
-          onClick={() => void swap()}
+          disabled={busy || (!expired && (!EXECUTION_POLICY.executionEnabled || !w.account || insufficient))}
+          onClick={() => void (expired ? getQuote() : swap())}
         >
-          {!w.account
-            ? "Connect wallet to swap"
-            : insufficient
-              ? "Insufficient SOL + fee reserve"
-              : expired
-                ? "Refresh quote"
+          {expired
+            ? "Refresh quote"
+            : !EXECUTION_POLICY.executionEnabled
+              ? 'Execution disabled'
+            : !w.account
+              ? "Connect wallet to swap"
+              : insufficient
+                ? "Insufficient SOL + fee reserve"
                 : "Review & swap"}
         </button>
       ) : null}
@@ -262,7 +363,7 @@ export function WalletSwap({ coin }: { coin: AxiomCoin | null }) {
           View transaction ↗
         </a>
       )}
-      {coin && (
+      {coin && coin.address !== WSOL && (
         <a
           className="external-route"
           href={`https://jup.ag/swap/${WSOL}-${coin.address}`}

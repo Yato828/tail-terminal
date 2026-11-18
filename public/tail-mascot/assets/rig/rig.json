@@ -1,0 +1,39 @@
+{
+  "size": 320,
+  "source": "references/APPROVED_IDLE_SOURCE.gif",
+  "headPivot": [
+    168,
+    184
+  ],
+  "leftShoulder": [
+    130,
+    202
+  ],
+  "rightShoulder": [
+    206,
+    202
+  ],
+  "leftFoot": [
+    140,
+    274
+  ],
+  "rightFoot": [
+    184,
+    274
+  ],
+  "eyes": [
+    [
+      148.43,
+      139.73
+    ],
+    [
+      196.54,
+      138.57
+    ]
+  ],
+  "palette": {
+    "orange": "#ff8a3d",
+    "cream": "#fff3e6",
+    "dark": "#252321"
+  }
+}

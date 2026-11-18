@@ -28,6 +28,41 @@ export async function fixtures(
     await page.routeWebSocket(/wss:\/\//, (socket) => {
       /* Quiet deterministic feed unless a test installs its own socket. */
     });
+  await page.route("**/candle/**", (route) => {
+    const u = new URL(route.request().url()),
+      interval = u.searchParams.get("interval") ?? "1m";
+    const step = (
+      {
+        "1m": 60,
+        "5m": 300,
+        "15m": 900,
+        "1h": 3600,
+        "4h": 14400,
+        "1d": 86400,
+      } as Record<string, number>
+    )[interval];
+    const end = Math.floor(Date.now() / (step * 1000)) * step;
+    return route.fulfill({
+      json: {
+        success: true,
+        chain: "solana",
+        mint: u.pathname.split("/").at(-2),
+        interval,
+        source: "birdeye",
+        volumeUnit: "token",
+        candles: u.searchParams.has("to")
+          ? []
+          : Array.from({ length: 40 }, (_, i) => ({
+              time: end - (40 - i) * step,
+              open: 1,
+              high: 1.02,
+              low: 0.98,
+              close: 1.001,
+              volume: 1000,
+            })),
+      },
+    });
+  });
   await page.route("**/rugcheck/**", (r) =>
     r.fulfill({ json: { mint, topHolders: null } }),
   );
@@ -37,7 +72,7 @@ export async function fixtures(
         configured: false,
         ready: false,
         model: null,
-        reason: "Astra isn't configured. Add OPENAI_API_KEY on the server.",
+        reason: "Fable 5.2 isn't configured. Add OPENAI_API_KEY on the server.",
         rateLimit: "local",
       },
     }),
@@ -46,7 +81,7 @@ export async function fixtures(
     r.fulfill({
       status: 503,
       json: {
-        error: "Astra isn't configured. Add OPENAI_API_KEY on the server.",
+        error: "Fable 5.2 isn't configured. Add OPENAI_API_KEY on the server.",
       },
     }),
   );
@@ -62,18 +97,24 @@ export async function fixtures(
   });
   await page.route("**/gecko/**", async (route) => {
     if (route.request().url().includes("ohlcv")) {
-      const before = new URL(route.request().url()).searchParams.get(
-        "before_timestamp",
-      );
+      const u = new URL(route.request().url());
+      const before = u.searchParams.get("before_timestamp");
+      const step =
+        Number(u.searchParams.get("aggregate") || 1) *
+        (u.pathname.endsWith("/day")
+          ? 86400
+          : u.pathname.endsWith("/hour")
+            ? 3600
+            : 60);
       const end = before
         ? Number(before)
-        : Math.floor(Date.now() / 300000) * 300;
+        : Math.floor(Date.now() / (step * 1000)) * step;
       await route.fulfill({
         json: {
           data: {
             attributes: {
               ohlcv_list: Array.from({ length: 40 }, (_, i) => [
-                end - (i + 1) * 300,
+                end - (i + 1) * step,
                 1,
                 1.02,
                 0.98,
@@ -160,7 +201,8 @@ export async function fixtures(
   });
 }
 export async function enter(page: Page) {
-  await page.goto("/");
+  // Exercise the explicitly retained legacy terminal. TAIL has its own full-flow suite.
+  await page.goto("/?legacy=1");
   await page
     .getByRole("button", { name: "Enter Terminal", exact: true })
     .first()

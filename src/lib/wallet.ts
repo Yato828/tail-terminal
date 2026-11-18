@@ -1,3 +1,5 @@
+import { tailBackendEnabled } from "../services/backend/config";
+import { tailApi } from "../services/backend/client";
 import { useEffect, useState } from "react";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet, WalletAccount } from "@wallet-standard/base";
@@ -104,6 +106,12 @@ export async function refreshAccount() {
   const account = snap.account;
   if (!account) return;
   try {
+    if (tailBackendEnabled()) {
+      const b = await tailApi.wallet(account);
+      if (b.address !== account || !/^\d+$/.test(b.lamports)) throw new Error("Invalid wallet balance");
+      if (snap.account === account) { snap.bal = Number(b.lamports) / 1e9; emit(); }
+      return;
+    }
     const b = await rpc<{ value: number }>("getBalance", [account, { commitment: "confirmed" }]);
     if (snap.account === account) { snap.bal = b.value / 1e9; emit(); }
   } catch { if (snap.account === account) { snap.bal = null; emit(); } }

@@ -21,7 +21,7 @@ test("sphere transition waits for the terminal and plays again on the way home",
     },
   );
   try {
-    await page.goto("/");
+    await page.goto("/?legacy=1");
     await page
       .locator(".signal-header")
       .getByRole("button", { name: "Enter Terminal", exact: true })
@@ -82,13 +82,13 @@ test("homepage previews, modal focus and the terminal round trip", async ({
     )
       dataRequests.push(request.url());
   });
-  await page.goto("/");
+  await page.goto("/?legacy=1");
   await expect(page.getByRole("heading", { name: /See beyond/ })).toBeVisible();
   await page.getByRole("tab", { name: "On-chain intelligence" }).click();
   await expect(
     page.getByRole("heading", { name: "Connect the dots." }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Astra assistant" }).click();
+  await page.getByRole("tab", { name: "Fable 5.2 assistant" }).click();
   await expect(
     page.getByRole("heading", { name: "A second perspective." }),
   ).toBeVisible();
@@ -137,12 +137,12 @@ test("mobile navigation, narrow layouts and reduced motion", async ({
   await fixtures(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
+  await page.goto("/?legacy=1");
   const menu = page.getByRole("button", { name: "Open navigation" });
   await menu.click();
   const nav = page.getByRole("navigation", { name: "Mobile navigation" });
   await expect(nav).toBeVisible();
-  await nav.getByRole("link", { name: "Astra" }).click();
+  await nav.getByRole("link", { name: "Fable 5.2" }).click();
   await expect(nav).toBeHidden();
   await expect(page).toHaveURL(/#astra$/);
   await expect(

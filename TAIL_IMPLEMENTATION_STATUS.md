@@ -1,0 +1,60 @@
+# TAIL 2.0 — implementation status
+
+Проверяемая локальная версия от 17 ноября 2026. Solana mainnet. Production не обновлялся.
+
+Основной вход: `npm run dev`, затем `/terminal`. Новые панели доступны через Workspace Studio, Multi-chart, Wallet intelligence, Trade journal, Alert rules и переключатель модулей внутри открытой панели. Pulse → Advanced открывает новый поиск. Portfolio в боковом меню открывает реальные публичные балансы.
+
+| Feature | Status | Source | Tests | Limitations |
+|---|---|---|---|---|
+| Сохранение исходного состояния | Implemented | Защищённый архив рабочего дерева, отдельная ветка | SHA-256 и исходные typecheck/unit/build | Архив содержит локальную конфигурацию; не включён в релиз |
+| Нативные subagents и роли | Implemented | `.codex/config.toml`, `.codex/agents/`, `AGENTS.md` | Реальные задания пяти специалистов по очереди, отдельные worktrees | Максимум 4 активных потока вместе с главным |
+| CI без деплоя | Implemented | `.github/workflows/tail-checks.yml`, `scripts/ci-preview.mjs` | Проверки трёх локальных CI-профилей; endpoint/config tests | GitHub workflow ещё не запускался удалённо |
+| Unified market evidence | Implemented | `src/features/v2/market/` | market/enrich unit, market browser, отдельные live-проверки | Старые адаптеры сохранены; их кеши не полностью объединены с V2 |
+| Метаданные, цена, капитализация, ликвидность, объёмы, сделки | Implemented | Raw DexScreener snapshots; V1 adapters | Exact mint/chain/pool, null/zero, source-time tests | Покрытие провайдера и конкретного пула; pool age не равен mint age |
+| Cache, batching, deduplication, shared subscriptions | Implemented | `market/cache.ts`, `snapshot.ts`, `poolStream.ts`, wallet/holder caches | TTL, batch budgets, reference counts, hidden-tab and cleanup tests | Бюджеты ограничены; нет обещания полного глобального потока |
+| Live pool push | Partially implemented | Проверенные Orca Whirlpools, Raydium CLMM, Meteora DLMM decoders | Decoder/refcount/reconnect/browser fixtures | Остальные пулы используют source candles; HTTP bootstrap не считается push |
+| Диагностика задержек и источников | Partially implemented | Source Diagnostics, Market diagnostics | Cache/error/rate-limit/stream tests | Измеряется запрос и доставка события внутри браузера; end-to-end задержка от блокчейна до отрисовки не установлена |
+| Discovery: New/Trending/Volume/Gainers/Losers/Liquidity/Watchlist/Custom | Implemented | `AdvancedDiscovery`, `discovery.ts` | Категории, пустые ответы, 429, mobile | Ограниченная выборка; не глобальный рейтинг или поток всех запусков |
+| Recently Migrated / Pump.fun lifecycle | Blocked | Явное Unavailable; поля DSL зарезервированы | Unknown/missing predicates | Нет подтверждённого бесплатного источника событий миграции; адрес с суффиксом не является доказательством |
+| AND/OR, nested filters, presets, sorting, import/export | Implemented | `market/filters.ts`, Advanced Discovery | Validation, tri-state logic, OR edit/import regression | Недоступные поля дают Unknown, а не 0/false |
+| Authority/program/holder filters | Partially implemented | Load on-chain filter evidence | Exact parsed mint/program, bounded enrichment, source TTL tests | До 8 mint accounts и 4 holder samples за явный запрос; holder distribution неполная |
+| Dev holdings / verified socials / wallet-activity discovery filters | Blocked | DSL поддерживает типы и Unknown | Validation/missing-source tests | Нет верифицированного creator/social/activity индекса для всей выборки |
+| Candles, Line, Area, Heikin Ashi | Implemented | Существующий `Chart.tsx` и V2 chart modules | Math/settings/browser fixtures | Heikin Ashi — производный ряд; исходные OHLC не заменяются |
+| Price/estimated market cap, log/linear, volume, zoom/fullscreen/paging | Implemented | Lightweight Charts, существующие адаптеры | Existing chart/history suites, V1 browser profile, live intervals | Ограничения истории и единицы объёма показаны; капитализация оценочная |
+| EMA/SMA/RSI/MACD/Bollinger/Volume MA | Implemented | Локальные `charts/math.ts`, `useIndicators.ts` | Численные warm-up/formula tests, browser series/settings | Без платных запросов и подмены свечей |
+| VWAP | Implemented | Локальный расчёт по base-token volume | USD-volume rejection and formula tests | При доступном только USD volume индикатор недоступен |
+| Multi-chart, token groups, linked crosshair, presets | Implemented | ChartWorkbench, Workspace Studio | Independent/shared contexts, imports, crosshair fixtures | До 4 графиков Workbench; до 8 виджетов Studio |
+| Chart event annotations | Partially implemented | `charts/events.ts`, EventControls | 8 unit tests, browser mode-switch/clear/unmount | Optional local alert observations и явно manual journal; только существующие UTC candle buckets, до 40. Verified wallet purchases/migrations/liquidity events отсутствуют |
+| Explain This Move | Partially implemented | Chart range → Fable local tool → optional model | Original-bar/range/schema/browser tests | Источник сделок может быть недоступен; корреляция не объявляется причиной |
+| Wallet CRUD, labels/groups/colors/favorites | Implemented | Wallet Intelligence, shared watchlist parser | CRUD/reload/group/color/browser fixtures | Публичный адрес не подтверждает владение кошельком |
+| Activity, SOL/SPL net movement, fees, program filters | Implemented | `intelligence/wallet.ts`, RPC | BigInt balances, account creation/closure, malformed RPC tests | Ограниченный scan; изменение баланса не называется покупкой/продажей |
+| Wallet Overlap | Implemented | Сопоставление exact mint в подтверждённой активности | Overlap/dedup tests, browser fixtures | Общий токен не доказывает связь владельцев |
+| Smart Money | Partially implemented | Существующая панель + Wallet Intelligence/Overlap | Activity/unknown-PnL tests | Нет подтверждённого рейтинга доходности, win rate или полного execution history |
+| Bubble Map | Partially implemented | Существующий canvas, RPC/RugCheck holder sample | Exact mint, controls, layout, mobile fixtures | Largest-account owners, 10/20; это не официальный Bubblemaps API и не полная карта. Связи без transfer evidence выключены |
+| Security checks | Partially implemented | Подтверждённый parsed mint, raw pool snapshot, holder sample | Owner/type/authority/null/timestamp tests | Без оценки «безопасен»; locking, creator и неизвестные Token-2022 extensions не выдумываются |
+| Developer DNA / creator history | Blocked | Отображается причина отсутствия доказательств | Security unknown assertions | Нет подтверждённой личности creator и исторического индекса |
+| Token Memory | Implemented | До 240 локальных snapshots с per-field evidence | Save/compare/same-mint/null/clear browser+unit tests | Локальные наблюдения, не полная история блокчейна |
+| Portfolio balances/value/CSV | Implemented | RPC SOL/SPL/Token-2022, current DEX marks | Owner/mint validation, null balance, unpriced subtotal tests | До 12 цен за обновление; непокрытая часть явно указана |
+| Автоматический полный Portfolio PnL | Blocked | Portfolio показывает Unknown | Missing-basis/transfer/accounting regressions | Нет полного набора проверенных покупок/продаж и исторических цен исполнения |
+| Weighted-average accounting | Implemented | Exact decimal accounting library + Manual journal accounting | Partial sells, fees, replay, transfers, unknown basis, CSV | Ручной журнал явно отделён от исполнения; полный opening history подтверждает пользователь |
+| Trade Journal | Implemented | Browser-local journal, edit/delete/import/CSV/JSON | Model tests и зарегистрированный UI create/edit/reload/delete | Импортированные записи и signatures всегда manual; уже потерянная точность JS number не восстанавливается |
+| Trading infrastructure | Partially implemented | Trading Routes, Jupiter read-only buy/sell quotes | Amount/policy/mismatch/expiry/balance/quote fixtures | Примерная slippage floor, не готовый order; network fee неизвестна без проверенной транзакции |
+| Safe execution / Pump.fun / PumpSwap adapters | Blocked | Global execution policy выключена, включая legacy entry point | Malicious bytes/payer/signatures/quote-only tests | Нет завершённых независимых quote-to-instruction adapters и полной проверки accounts/fees/simulation |
+| Advanced foreground alert rules | Implemented | `alerts/` + один runner в терминале | Threshold/cooldown/source/OR preset/edit/pause/history/clear tests | До 8 mint / 4 wallet; проверки только в видимой открытой вкладке |
+| Migration/holder alert coverage | Partially implemented | Те же правила по реальному evidence | Missing/stale/source-switch tests | Миграции ждут подтверждённого источника; holder change требует двух доступных сопоставимых snapshots |
+| 24/7 background notifications | Not implemented | Явное foreground-only описание | Permission and hidden-tab behavior | Нет постоянно работающего бесплатного сервера доставки |
+| Fable strict data tools | Implemented | 19 read-only tools, существующие 7 сохранены | Schemas/bounds/tool/API/local browser tests | Работающие локальные tools не выдаются за ответ модели |
+| Fable contextual chat/stream/actions/usage | Partially implemented | Существующий Responses API, genuine SSE, review dialog | Mocked provider streaming, rate limits, context, cancel/proposal tests | В текущей локальной конфигурации нет AI credentials и production persistent limiter; платный live вызов не выполнялся |
+| Fable personal portfolio context | Partially implemented | Отдельное opt-in permission, по умолчанию off | Context privacy/schema tests | Реальные приватные балансы/полная история в модель не прикрепляются |
+| BYOK | Partially implemented | Server-only `OPENAI_API_KEY` / model config | No-browser-key/config checks | Нет пользовательского browser key vault или multi-user key management |
+| Manual social analysis/CA matching/notes | Implemented | Social Notes, explicit selected-text input | Parsing/mint match/URL/import/mobile tests | X/TG API и глобальная live-лента не подключены; URLs не скрейпятся |
+| MV3 Side Panel/context menu/activeTab | Implemented | Extension background + SidePanel | Установленное расширение и UI fixtures | Чтение страницы только по явному действию; OS context menu и grants произвольного сайта требуют ручной проверки |
+| Extension theme/context/settings sync | Implemented | Shared extension origin/session storage | Popup/desk/side-panel reload fixtures | Не обещается синхронизация сайта, другого устройства или браузера |
+| Custom workspaces | Implemented | Default desk сохранён; optional Studio | Drag/resize/pin/hide/max/groups/presets/import/mobile tests | Локальное хранение, максимум 8 Studio instances |
+| Anonymous persistence | Implemented | LocalStorage + IndexedDB collections, validated versioned records | Reload/import/export/clear-data tests | Это browser-profile данные, не авторизованный облачный аккаунт |
+| Neon / wallet-challenge account auth | Not implemented | Не настроены в текущем проекте | Проверено наличие настроек без раскрытия значений | Новая БД/аккаунты не создавались; приватных shared-record API нет |
+| Lazy loading/performance budgets | Partially implemented | Lazy modules, bounded scans/cache, shared streams, pause hidden | Subscription/cleanup/budget tests | Нет заявления о профилировании всех таблиц, Web Workers или гарантии 100 ms |
+| Approved design/star/mascot | Implemented | Существующие бренд и 2D runtime сохранены | Mascot, landing/site/browser regression suites | Изменения TAIL 2.0 не перерисовывают персонажа |
+| Production rollout | Not implemented | Локальная ветка и артефакты | Сборки и проверки описаны отдельно | Требуется отдельное согласование пользователя |
+
+Детальные фактические результаты: [TAIL_TEST_RESULTS.md](TAIL_TEST_RESULTS.md). Дополнительные отчёты: [backend](TAIL_BACKEND_V2_REPORT.md), [market data](TAIL_MARKET_DATA_REPORT.md), [intelligence](TAIL_INTELLIGENCE_REPORT.md), [security](TAIL_SECURITY_REPORT.md), [cost](TAIL_COST_REPORT.md). Статус Implemented относится к описанной функции в указанном объёме, а не к доступности стороннего API во всех регионах и в любое время.

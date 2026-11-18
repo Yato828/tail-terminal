@@ -1,0 +1,83 @@
+name: TAIL checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Verification only: no deployment credentials, environment secrets or write token.
+permissions:
+  contents: read
+
+concurrency:
+  group: tail-checks-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENAI_API_KEY: ''
+  UPSTASH_REDIS_REST_URL: ''
+  UPSTASH_REDIS_REST_TOKEN: ''
+  PART_LIVE_TESTS: '0'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:mascot
+      - run: npm run backend:test
+      - name: Build and package extension locally
+        run: npm run ext:zip
+      - name: Build standalone website locally
+        run: npm run build
+
+  fixture-browsers:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        profile: [standalone, legacy, backend-v1]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # ci-preview owns server start/readiness/cleanup and sets the exact client mode.
+      # standalone: entire fixture suite; explicit V1 specs self-skip.
+      # legacy: opt-in scenario fixture, including its ungated generation/cancel path.
+      # backend-v1: the 13 explicit V1 API contract fixtures (normally self-skipped).
+      # Requests are intercepted by fixtures; ci-* Vite modes disable upstream proxies
+      # and .env credential loading. No live API or model access is required.
+      - name: Run isolated fixture suite
+        run: node scripts/ci-preview.mjs ${{ matrix.profile }}
+      - name: Keep fixture diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fixture-${{ matrix.profile }}
+          path: artifacts/ci/${{ matrix.profile }}/
+          if-no-files-found: ignore
+          retention-days: 7
+
+# Deliberately excluded: npm run test:live, real swaps/signatures, external model
+# verification, deployment and native unpacked-extension lifecycle scripts. The ZIP
+# is built above; popup/side-panel UI is exercised by v2-social fixtures. Source
+# availability and native browser-extension permissions require separate verification.

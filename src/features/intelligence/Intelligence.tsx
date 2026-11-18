@@ -1,3 +1,6 @@
+import { tailBackendEnabled } from "../../services/backend/config";
+import { tailApi, formatAtomic } from "../../services/backend/client";
+import { AssistantName } from "../../design-system/brand";
 import { useEffect, useRef, useState } from "react";
 import type { AxiomCoin } from "../../lib/axiom";
 import { fetchTrades, type Trade } from "../../lib/api";
@@ -126,7 +129,7 @@ export function XRay({ coin, open }: Props) {
           Verified pool ↗
         </a>
         <button onClick={() => open("astra")}>
-          Ask Astra about this token
+          Ask <AssistantName /> about this token
         </button>
         <button onClick={() => open("holders")}>Open Bubble Map</button>
       </div>
@@ -646,7 +649,7 @@ export function WalletWatch({
                       else open("astra");
                     }}
                   >
-                    Ask Astra
+                    Ask <AssistantName />
                   </button>
                 </td>
               </tr>
@@ -732,6 +735,17 @@ export function ExitSimulator({ coin, open }: Props) {
         BigInt(fraction.padEnd(decimals, "0") || "0");
       if (input <= 0n || input > 18446744073709551615n)
         throw new Error("Amount is outside the SPL token range.");
+      if (tailBackendEnabled()) {
+        const q = await tailApi.quote(coin.address, WSOL, input.toString());
+        if (version === generation.current)
+          setQuote({
+            sol: formatAtomic(q.outAmount!, 9),
+            min: "Unavailable (quote only)",
+            impact: q.priceImpactPct ?? NaN,
+            at: Date.now(),
+          });
+        return;
+      }
       const response = await getJson<{
         success: boolean;
         data?: {
@@ -790,7 +804,9 @@ export function ExitSimulator({ coin, open }: Props) {
           <small>SOLANA / HYPOTHETICAL EXIT</small>
           <h1>Exit Simulator</h1>
           <p>
-            Request a real read-only Raydium sell quote for {coin.symbol} → SOL.
+            Request a real read-only{" "}
+            {tailBackendEnabled() ? "Jupiter" : "Raydium"} sell quote for{" "}
+            {coin.symbol} → SOL.
           </p>
         </div>
       </header>
@@ -843,16 +859,28 @@ export function ExitSimulator({ coin, open }: Props) {
               <strong>{quote.sol} SOL</strong>
             </div>
             <div>
-              <small>Minimum · 1% slippage</small>
-              <strong>{quote.min} SOL</strong>
+              <small>
+                {tailBackendEnabled()
+                  ? "Minimum output"
+                  : "Minimum · 1% slippage"}
+              </small>
+              <strong>
+                {quote.min}
+                {tailBackendEnabled() ? "" : " SOL"}
+              </strong>
             </div>
             <div>
               <small>Provider price impact</small>
-              <strong>{quote.impact}%</strong>
+              <strong>
+                {Number.isFinite(quote.impact)
+                  ? `${quote.impact}%`
+                  : "Unavailable"}
+              </strong>
             </div>
           </div>
           <p className="data-note">
-            Raydium · {new Date(quote.at).toISOString()} ·{" "}
+            {tailBackendEnabled() ? "Jupiter · quote only" : "Raydium"} ·{" "}
+            {new Date(quote.at).toISOString()} ·{" "}
             {now - quote.at > 45000
               ? "Stale quote. Simulate again."
               : "Snapshot only; refresh before making a decision."}
@@ -952,7 +980,7 @@ export function KOLAnalyzer({ open }: Props) {
           />
         </label>
         <button className="primary-action" disabled={busy || !text.trim()}>
-          Analyze with Astra
+          Analyze with <AssistantName />
         </button>
         {busy && (
           <button type="button" onClick={() => abort.current?.abort()}>
@@ -982,7 +1010,9 @@ export function KOLAnalyzer({ open }: Props) {
         </p>
       )}
       {answer && <article className="generated-text">{answer}</article>}
-      <button onClick={() => open("astra")}>Open Astra</button>
+      <button onClick={() => open("astra")}>
+        Open <AssistantName />
+      </button>
     </section>
   );
 }

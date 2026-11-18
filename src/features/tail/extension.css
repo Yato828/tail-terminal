@@ -1,0 +1,134 @@
+.tail-extension-bar {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 28px;
+  z-index: 120;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  background: #251b15;
+  border-bottom: 1px solid #705037;
+  font-size: 9px;
+  color: #ccb29d;
+}
+.tail-extension-bar b {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: #f6eee6;
+}
+.tail-extension-bar b span {
+  font-size: 8px;
+  font-weight: 400;
+  color: #ba9980;
+}
+.tail-extension-bar a {
+  color: #ff963b;
+  font-size: 10px;
+}
+.extension-desk .tail-app {
+  padding-top: 28px;
+}
+.extension-desk .tail-sidebar {
+  padding-top: 0;
+}
+.extension-desk .tail-modal-backdrop {
+  top: 110px;
+}
+html.ext .tail-app {
+  width: 400px;
+  height: 580px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 28px;
+  padding-bottom: 65px;
+  scrollbar-width: thin;
+  scrollbar-color: #705037 #151212;
+}
+html.ext .tail-header {
+  top: 0;
+  height: 64px;
+  padding-inline: 10px;
+}
+html.ext .tail-header .tail-logo {
+  width: 105px;
+  height: 60px;
+}
+html.ext .tail-header .wallet-chip {
+  max-width: 88px;
+  font-size: 9px;
+}
+html.ext .tail-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: auto;
+  min-height: 0;
+}
+html.ext .chart-column {
+  order: 0;
+}
+html.ext .market-column {
+  order: 1;
+  display: flex;
+  flex-direction: column;
+}
+html.ext .trade-column {
+  order: 2;
+}
+html.ext .widget-chart {
+  min-height: 560px;
+  height: auto;
+}
+html.ext .chart-welcome {
+  min-height: 400px;
+}
+html.ext .tail-app .sol-chart {
+  min-height: 480px;
+}
+html.ext .tail-app .chart-frame {
+  min-height: 230px;
+  flex-basis: 230px;
+}
+html.ext .tail-app .chart-surface {
+  min-height: 230px;
+}
+html.ext .tail-app .token-heading {
+  padding: 14px 10px;
+}
+html.ext .tail-app .token-metrics {
+  padding: 10px;
+  gap: 10px;
+  font-size: 10px;
+}
+html.ext .tail-app .token-price > b {
+  font-size: 17px;
+}
+html.ext .widget-trending,
+html.ext .widget-smart,
+html.ext .widget-pulse,
+html.ext .widget-fable {
+  height: auto;
+  max-height: none;
+  min-height: 150px;
+}
+html.ext .widget-trending .token-list {
+  max-height: 240px;
+}
+html.ext .tail-modal-backdrop {
+  top: 28px;
+  bottom: 60px;
+}
+html.ext .widget-maximized {
+  top: 30px;
+  bottom: 62px;
+}
+html.ext .tail-sidebar {
+  height: 60px;
+}
+html.ext .workspace-bar {
+  padding: 8px 0;
+  gap: 5px;
+}

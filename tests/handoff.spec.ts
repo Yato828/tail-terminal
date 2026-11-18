@@ -24,7 +24,7 @@ test("extension wallet link opens the selected mint over an existing saved works
     },
     { wallet, pool },
   );
-  await page.goto(`/?terminal=1&mint=${mint}`);
+  await page.goto(`/?legacy=1&terminal=1&mint=${mint}`);
   await expect(page.locator(".term-overlay.on")).toBeVisible();
   await expect(page.locator(".workspace-context")).toContainText("USDC");
   await expect(page.locator(".sol-chart")).toHaveAttribute(
@@ -45,7 +45,7 @@ test("extension wallet link opens the selected mint over an existing saved works
     .toBe(mint);
   await page.getByRole("button", { name: "House", exact: false }).click();
   await expect(page.locator(".term-overlay.on")).toHaveCount(0);
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/\?legacy=1$/);
   await expect(page.getByRole("heading", { name: /See beyond/ })).toBeVisible();
 });
 
@@ -57,7 +57,7 @@ test("an unavailable linked mint stays empty and can be selected through search 
   await page.route(`**/dex/token-pairs/v1/solana/${mint}`, (route) =>
     available ? route.fallback() : route.fulfill({ json: [] }),
   );
-  await page.goto(`/?terminal=1&mint=${mint}`);
+  await page.goto(`/?legacy=1&terminal=1&mint=${mint}`);
   await expect(page.locator(".term-overlay.on")).toBeVisible();
   await expect(page.locator(".sol-status")).toContainText(
     "Linked token unavailable",

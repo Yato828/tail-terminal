@@ -67,6 +67,7 @@ beforeEach(() => {
   vi.stubEnv("NODE_ENV", "test");
   vi.stubEnv("UPSTASH_REDIS_REST_URL", "");
   vi.stubEnv("UPSTASH_REDIS_REST_TOKEN", "");
+  vi.stubEnv("OPENAI_MODEL", "");
   vi.stubEnv("ASTRA_MODEL", "gpt-6-astra");
 });
 afterEach(() => {
@@ -74,7 +75,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
-describe("Astra request and chain boundaries", () => {
+describe("Fable 5.2 request and chain boundaries", () => {
   it("validates wallet context and rejects URL-shaped wallet tool arguments", async () => {
     expect(parseChat({ messages, selectedWallet: WSOL }).selectedWallet).toBe(
       WSOL,
@@ -90,9 +91,12 @@ describe("Astra request and chain boundaries", () => {
     ).rejects.toThrow();
   });
   it("reports missing key without fake answers or secrets", async () => {
+    const upstream = vi.fn(); vi.stubGlobal("fetch", upstream);
     const res = await handleAstra(request());
     expect(res.status).toBe(503);
-    expect(await res.text()).toContain("Add OPENAI_API_KEY on the server");
+    expect(await res.json()).toMatchObject({ code: "missing_api_key", usage: { requests: 0, totalTokens: null } });
+    expect(status()).toMatchObject({ configured: false, ready: false, code: "missing_api_key" });
+    expect(upstream).not.toHaveBeenCalled();
   });
   it("rejects system-role injection and invented context chains", () => {
     expect(() =>
@@ -208,8 +212,12 @@ describe("Astra request and chain boundaries", () => {
   it("fails closed without persistent production limits", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
-    expect(status().ready).toBe(false);
-    expect((await handleAstra(request())).status).toBe(503);
+    const upstream = vi.fn(); vi.stubGlobal("fetch", upstream);
+    expect(status()).toMatchObject({ ready: false, code: "missing_rate_limiter" });
+    const result = await handleAstra(request());
+    expect(result.status).toBe(503);
+    expect(await result.json()).toMatchObject({ code: "missing_rate_limiter" });
+    expect(upstream).not.toHaveBeenCalled();
   });
 });
 describe("Responses integration and billing boundaries", () => {
@@ -217,6 +225,56 @@ describe("Responses integration and billing boundaries", () => {
     output: [{ type: "message", content: [{ type: "output_text", text }] }],
     model,
     status: "completed",
+  });
+  it.each([
+    [401, "invalid_api_key", "authentication_failed", 502],
+    [403, "permission_denied", "model_unavailable", 502],
+    [404, "model_not_found", "model_unavailable", 502],
+    [400, "unsupported_model", "model_unavailable", 502],
+    [429, "insufficient_quota", "quota_exceeded", 429],
+    [429, "rate_limit_exceeded", "rate_limited", 429],
+    [504, "timeout", "request_timeout", 504],
+    [503, "server_error", "unreachable", 502],
+  ])("maps upstream HTTP %s/%s without exposing provider text", async (upstreamStatus, providerCode, code, expectedStatus) => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
+    const mock = vi.fn(async () => Response.json({ error: { code: providerCode, message: "PRIVATE test-key-not-real diagnostic https://provider.example" } }, { status: Number(upstreamStatus) }));
+    vi.stubGlobal("fetch", mock);
+    const result = await handleAstra(request());
+    expect(result.status).toBe(expectedStatus);
+    const body = await result.json();
+    expect(body).toMatchObject({ code, usage: { requests: 1, inputTokens: null, outputTokens: null, estimatedCostUsd: null } });
+    expect(JSON.stringify(body)).not.toMatch(/PRIVATE|test-key-not-real|provider\.example/);
+    expect(mock).toHaveBeenCalledTimes(1);
+  });
+  it("carries the same safe public code in an opt-in error stream", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { code: "insufficient_quota", message: "PRIVATE provider diagnostic" } }, { status: 429 })));
+    const result = await handleAstra(request({ messages, stream: true }, { Accept: "text/event-stream" }));
+    expect(result.headers.get("Content-Type")).toBe("text/event-stream");
+    const text = await result.text();
+    expect(text).toContain('"type":"error","status":429');
+    expect(text).toContain('"code":"quota_exceeded"');
+    expect(text).not.toContain("PRIVATE");
+  });
+  it("uses ChatGPT API by default but keeps the Fable 5.2 identity independent of the served model", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
+    vi.stubEnv("ASTRA_MODEL", "");
+    vi.stubEnv("OPENAI_MODEL", "");
+    const mock = vi.fn(async () =>
+      Response.json(response("Fable 5.2 response", "provider-chat-snapshot")),
+    );
+    vi.stubGlobal("fetch", mock);
+    const res = await handleAstra(request());
+    const result = await res.json();
+    expect(res.status).toBe(200);
+    expect(result.label).toBe("Fable 5.2");
+    expect(result.model).toBe("provider-chat-snapshot");
+    const body = JSON.parse(
+      (mock.mock.calls[0] as unknown as [string, RequestInit])[1]
+        .body as string,
+    );
+    expect(body.model).toBe("chat-latest");
+    expect(body.instructions).toContain("Always use Fable 5.2");
   });
   it("uses only server credentials, bounded tokens, stateless Responses and true served model", async () => {
     vi.stubEnv("OPENAI_API_KEY", "test-key-not-real");
@@ -228,7 +286,7 @@ describe("Responses integration and billing boundaries", () => {
     const res = await handleAstra(request());
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.label).toBe("Astra");
+    expect(body.label).toBe("Fable 5.2");
     expect(body.model).toBe("explicit-owner-fallback");
     expect(JSON.stringify(body)).not.toContain("test-key-not-real");
     const [url, init] = mock.mock.calls[0] as unknown as [string, RequestInit];
@@ -337,7 +395,7 @@ describe("Responses integration and billing boundaries", () => {
   });
 });
 
-describe("Astra chart scenario server", () => {
+describe("Fable 5.2 chart scenario server", () => {
   const scenario = {
     chainId: "solana",
     mint: WSOL,
@@ -469,5 +527,49 @@ describe("Astra chart scenario server", () => {
     expect(response.status).toBe(502);
     expect(await response.text()).toContain("unexpected tool call");
     expect(mock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TAIL 2.0 factual tools, workspace proposals and genuine streaming', () => {
+  it('validates workspace context and refuses private portfolio data without permission', async () => {
+    const workspaceContext = { mint: WSOL, interval: '5m', chartMode: 'heikin', filters: null, widgets: ['compare', 'signals'], allowPortfolio: false };
+    expect(parseChat({ messages, workspaceContext }).workspaceContext).toEqual(workspaceContext);
+    expect(() => parseChat({ messages, workspaceContext: { ...workspaceContext, interval: '1s' } })).toThrow();
+    expect(() => parseChat({ messages, workspaceContext, portfolio: { balance: 1 } })).toThrow('permission');
+    expect(() => parseChat({ messages, stream: 'true' })).toThrow('streaming');
+    await expect(runReadTool('configure_workspace', { actions: [{ type: 'sign_transaction' }] })).rejects.toThrow();
+    expect(await runReadTool('configure_workspace', { actions: [{ type: 'open_widget', widget: 'compare' }] })).toMatchObject({ proposals: [{ type: 'open_widget', widget: 'compare' }], data: { requiresConfirmation: true } });
+  });
+  it('returns validated workspace proposals and actual provider usage without claiming configured costs', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key-not-real');
+    let count = 0;
+    const mock = vi.fn(async () => Response.json(count++ === 0 ? { model: 'fixture-model', usage: { input_tokens: 100, output_tokens: 20, total_tokens: 120 }, output: [{ type: 'function_call', name: 'configure_workspace', arguments: JSON.stringify({ actions: [{ type: 'open_widget', widget: 'compare' }] }), call_id: 'proposal_1' }] } : { model: 'fixture-model', usage: { input_tokens: 200, output_tokens: 30, total_tokens: 230 }, output: [{ type: 'message', content: [{ type: 'output_text', text: 'A comparison panel is proposed. Review and apply it in the terminal.' }] }] }));
+    vi.stubGlobal('fetch', mock);
+    const result = await handleAstra(request({ messages, workspaceContext: { mint: null, interval: '1h', chartMode: 'line', filters: null, widgets: ['chart'], allowPortfolio: false } }));
+    expect(result.status).toBe(200); const body = await result.json();
+    expect(body.proposals).toEqual([{ type: 'open_widget', widget: 'compare' }]);
+    expect(body.usage).toMatchObject({ requests: 2, inputTokens: 300, outputTokens: 50, totalTokens: 350, estimatedCostUsd: null });
+    const sent = JSON.parse((mock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
+    expect(sent.tools).toHaveLength(19); expect(sent.input[0].content).toContain('Current workspace');
+    expect(sent.tools.map((t: { name: string }) => t.name)).toContain('get_token_holders');
+  });
+  it('relays actual Responses deltas when streaming is explicitly enabled', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'test-key-not-real');
+    const completed = { model: 'fixture-model', usage: { input_tokens: 12, output_tokens: 3, total_tokens: 15 }, output: [{ type: 'message', content: [{ type: 'output_text', text: 'Source answer.' }] }], status: 'completed' };
+    const upstream = `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: 'Source ' })}\n\ndata: ${JSON.stringify({ type: 'response.output_text.delta', delta: 'answer.' })}\n\ndata: ${JSON.stringify({ type: 'response.completed', response: completed })}\n\n`;
+    const mock = vi.fn(async () => new Response(upstream, { headers: { 'Content-Type': 'text/event-stream' } })); vi.stubGlobal('fetch', mock);
+    const response = await handleAstra(request({ messages, stream: true }, { Accept: 'text/event-stream' }));
+    expect(response.headers.get('content-type')).toBe('text/event-stream');
+    const events = (await response.text()).split('\n\n').filter(Boolean).map(frame => JSON.parse(frame.slice(6)));
+    expect(events.filter(e => e.type === 'delta').map(e => e.text).join('')).toBe('Source answer.');
+    expect(events.at(-1)).toMatchObject({ type: 'result', result: { text: 'Source answer.', usage: { requests: 1, totalTokens: 15 } } });
+    expect(JSON.parse((mock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).stream).toBe(true);
+  });
+  it('keeps no-key and persistent-production limits fail-closed for streaming too', async () => {
+    const mock = vi.fn(); vi.stubGlobal('fetch', mock);
+    expect((await handleAstra(request({ messages, stream: true }, { Accept: 'text/event-stream' }))).status).toBe(503);
+    vi.stubEnv('OPENAI_API_KEY', 'test-key-not-real'); vi.stubEnv('NODE_ENV', 'production');
+    expect((await handleAstra(request({ messages, stream: true }, { Accept: 'text/event-stream' }))).status).toBe(503);
+    expect(mock).not.toHaveBeenCalled();
   });
 });

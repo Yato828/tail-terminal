@@ -1,0 +1,10 @@
+.tail-mascot[data-renderer="tail-2d"] {
+  aspect-ratio: 1;
+}
+.tail-mascot[data-renderer="tail-2d"] canvas {
+  max-width: 100%;
+}
+.fable-heading .tail-mascot[data-renderer="tail-2d"] {
+  width: 128px;
+  height: 128px;
+}

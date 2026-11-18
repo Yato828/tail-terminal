@@ -1,4 +1,9 @@
 import { defineConfig } from "@playwright/test";
+const engine = process.env.PART_TEST_ENGINE as
+  | "chromium"
+  | "firefox"
+  | "webkit"
+  | undefined;
 export default defineConfig({
   testDir: "./tests",
   timeout: 45000,
@@ -8,7 +13,11 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env.PART_TEST_BASE || "http://localhost:4664",
-    channel: process.env.CI ? undefined : "chrome",
+    browserName: engine || "chromium",
+    channel:
+      process.env.CI || (engine && engine !== "chromium")
+        ? undefined
+        : "chrome",
     viewport: { width: 1440, height: 900 },
     headless: true,
     trace: "retain-on-failure",

@@ -1,3 +1,5 @@
+import { tailBackendEnabled } from "../services/backend/config";
+import { tailApi } from "../services/backend/client";
 import { getJson } from "./http";
 import { rpc } from "./rpcFeed";
 import { isPoolAddr, paprikaTransactionRows } from "./axiom";
@@ -103,6 +105,31 @@ export async function fetchTrades(
   token: string,
   tokenPrice = 0,
 ): Promise<Trade[]> {
+  if (tailBackendEnabled()) {
+    const r = await tailApi.trades(pool);
+    return r.items.flatMap((t) => {
+      if (
+        !t.hash ||
+        !t.timestamp ||
+        (t.toMint !== token && t.fromMint !== token)
+      )
+        return [];
+      const buy = t.toMint === token;
+      const amount = Number(buy ? t.toAmount : t.fromAmount);
+      const price = buy ? t.priceToUsd : t.priceFromUsd;
+      return [
+        {
+          hash: t.hash,
+          wallet: t.wallet ?? "",
+          side: buy ? ("buy" as const) : ("sell" as const),
+          amount: Number.isFinite(amount) && amount > 0 ? amount : NaN,
+          price: price ?? NaN,
+          usd: t.volumeUsd ?? NaN,
+          timestamp: t.timestamp,
+        },
+      ];
+    });
+  }
   const onchain = async () => {
     const rows = await fetchRpcPoolTrades(pool, token);
     if (!rows.length) throw new Error("No RPC trades");

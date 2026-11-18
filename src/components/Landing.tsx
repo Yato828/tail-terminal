@@ -39,7 +39,7 @@ function BrowserIcon() {
 const previews = [
   { id: "terminal", label: "The terminal", icon: "⌁" },
   { id: "intelligence", label: "On-chain intelligence", icon: "◉" },
-  { id: "astra", label: "Astra assistant", icon: "✳" },
+  { id: "astra", label: "Fable 5.2 assistant", icon: "✳" },
 ] as const;
 type Preview = (typeof previews)[number]["id"];
 
@@ -171,7 +171,7 @@ export function Landing({
         </a>
         <nav className="signal-desktop-nav" aria-label="Main navigation">
           <a href="#workspace">Workspace</a>
-          <a href="#astra">Astra</a>
+          <a href="#astra">Fable 5.2</a>
           <a href="#extension">Extension</a>
         </nav>
         <div className="signal-header-actions">
@@ -213,7 +213,7 @@ export function Landing({
             Workspace <Arrow diagonal />
           </a>
           <a href="#astra" onClick={go}>
-            Astra <Arrow diagonal />
+            Fable 5.2 <Arrow diagonal />
           </a>
           <a href="#extension" onClick={go}>
             Extension <Arrow diagonal />
@@ -257,7 +257,7 @@ export function Landing({
             <p className="signal-description signal-hero-reveal">
               Your instinct. A sharper perspective.
               <br />
-              Charts, on-chain intelligence and Astra.
+              Charts, on-chain intelligence and Fable 5.2.
               <br />
               One workspace. All Solana.
             </p>
@@ -359,7 +359,7 @@ export function Landing({
                         ? "◉  Follow the on-chain picture"
                         : "✳  The context stays with you"}
                   </span>
-                  <kbd>{preview === "astra" ? "ASTRA" : "⌘ K"}</kbd>
+                  <kbd>{preview === "astra" ? "FABLE 5.2" : "⌘ K"}</kbd>
                 </div>
                 {preview === "terminal" ? (
                   <div className="signal-preview-empty" key="terminal">
@@ -425,7 +425,7 @@ export function Landing({
                     <p>
                       Bring a question to your Solana research.
                       <br />
-                      Astra works with read-only tools when configured.
+                      Fable 5.2 works with read-only tools when configured.
                     </p>
                     <div className="signal-example">
                       <span>EXAMPLE PROMPT</span>What should I look at before
@@ -436,7 +436,7 @@ export function Landing({
                       className="signal-text-link"
                       onClick={enter}
                     >
-                      Meet Astra in the terminal <Arrow diagonal />
+                      Meet Fable 5.2 in the terminal <Arrow diagonal />
                     </button>
                   </div>
                 )}
@@ -455,7 +455,7 @@ export function Landing({
               <h3>See the connections.</h3>
               <p>
                 Explore holders, watch wallets and put market activity in
-                context with Astra.
+                context with Fable 5.2.
               </p>
             </article>
             <article data-reveal>
@@ -474,7 +474,7 @@ export function Landing({
           aria-labelledby="astra-title"
         >
           <div className="signal-section-meta" data-reveal>
-            <p className="signal-eyebrow">Astra</p>
+            <p className="signal-eyebrow">Fable 5.2</p>
           </div>
           <div className="signal-connection-title" data-reveal>
             <h2 id="astra-title">
@@ -502,7 +502,7 @@ export function Landing({
             </p>
             <div>
               <p>
-                Ask Astra about your Solana research. Explore on-chain
+                Ask Fable 5.2 about your Solana research. Explore on-chain
                 information with read-only tools and keep the decision in your
                 hands.
               </p>
@@ -515,7 +515,7 @@ export function Landing({
               </button>
             </div>
             <span className="signal-astra-disclosure">
-              ASTRA REQUIRES SERVER CONFIGURATION.
+              FABLE 5.2 REQUIRES SERVER CONFIGURATION.
               <br />
               TRADES ALWAYS REQUIRE YOUR APPROVAL.
             </span>

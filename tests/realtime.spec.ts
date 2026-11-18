@@ -42,6 +42,9 @@ test("pool stream updates candles between source polls, preserves canvas and sto
   page,
 }) => {
   await fixtures(page, { liveSocket: true });
+  // These tests exercise a pool account overlay, so select the pool-scoped
+  // Gecko source explicitly instead of the preferred token-wide Candle source.
+  await page.route("**/candle/**", route => route.fulfill({ status: 503, json: { error: "Fixture requires pool-scoped history" } }));
   const sockets: WebSocketRoute[] = [];
   let closed = 0;
   await page.routeWebSocket(/wss:\/\//, (socket) => {
@@ -129,6 +132,9 @@ test("unknown pool layouts stay explicitly on source candles; user can reconnect
   page,
 }) => {
   await fixtures(page, { liveSocket: true });
+  // These tests exercise a pool account overlay, so select the pool-scoped
+  // Gecko source explicitly instead of the preferred token-wide Candle source.
+  await page.route("**/candle/**", route => route.fulfill({ status: 503, json: { error: "Fixture requires pool-scoped history" } }));
   let socket: WebSocketRoute | undefined;
   await page.routeWebSocket(/wss:\/\//, (s) => {
     socket = s;

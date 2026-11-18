@@ -169,6 +169,26 @@ describe("event-driven pool feed lifecycle", () => {
     expect(onTick).not.toHaveBeenCalled();
     stop();
   });
+  it("shares matching contexts, multicasts updates and closes only after the last subscriber", () => {
+    const a = vi.fn(), b = vi.fn();
+    const stopA = subscribePoolSpot({ pool, mint: WSOL, commitment: "confirmed", onTick: a, onStatus: vi.fn() });
+    const stopB = subscribePoolSpot({ pool, mint: WSOL, commitment: "confirmed", onTick: b, onStatus: vi.fn() });
+    expect(Socket.all).toHaveLength(1);
+    const socket = Socket.all[0]; socket.open(); socket.receive({ id: 1, result: 77 }); socket.receive(notification(100));
+    expect(a).toHaveBeenCalledTimes(1); expect(b).toHaveBeenCalledTimes(1);
+    stopA(); stopA(); expect(socket.readyState).toBe(Socket.OPEN);
+    socket.receive(notification(101, 124)); expect(a).toHaveBeenCalledTimes(1); expect(b).toHaveBeenCalledTimes(2);
+    stopB(); expect(socket.readyState).toBe(3);
+  });
+  it("keeps different commitment and endpoint preferences in separate channels", () => {
+    const base = { pool, mint: WSOL, onTick: vi.fn(), onStatus: vi.fn() };
+    const stops = [
+      subscribePoolSpot({ ...base, commitment: "processed" }),
+      subscribePoolSpot({ ...base, commitment: "confirmed" }),
+      subscribePoolSpot({ ...base, commitment: "confirmed", endpoint: "wss://node.example" }),
+    ];
+    expect(Socket.all).toHaveLength(3); stops.forEach(stop => stop());
+  });
   it("accepts only secure WSS URLs and keeps credentials out of provider labels", () => {
     for (const value of [
       "javascript:alert(1)",

@@ -16,7 +16,7 @@ export function walletWebsiteHref(
   const url = new URL(
     backend === "local" || import.meta.env.DEV
       ? "http://localhost:4664/"
-      : "https://part-woad.vercel.app/",
+      : "https://tail-solana-workspace.vercel.app/",
   );
   url.searchParams.set("terminal", "1");
   if (mint) url.searchParams.set("mint", mint);

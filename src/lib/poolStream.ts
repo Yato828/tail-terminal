@@ -49,7 +49,7 @@ export function validStreamUrl(raw: unknown): string {
   }
 }
 /** Read-only account PubSub. Never interprets metadata, logs or a spot price as a wallet instruction. */
-export function subscribePoolSpot(options: {
+function createPoolSpotSubscription(options: {
   pool: string;
   mint: string;
   commitment: StreamCommitment;
@@ -450,4 +450,53 @@ export function subscribePoolSpot(options: {
     clearInterval(heartbeat);
     socket?.close();
   };
+}
+
+
+type SharedPoolOptions = Parameters<typeof createPoolSpotSubscription>[0];
+type SharedPoolChannel = {
+  listeners: Set<Pick<SharedPoolOptions, "onTick" | "onStatus">>;
+  stop: () => void;
+  tick?: SpotTick;
+  status?: StreamStatus;
+};
+const sharedPoolChannels = new Map<string, SharedPoolChannel>();
+/** One verified account subscription per identical context; last consumer owns cleanup. */
+export function subscribePoolSpot(options: SharedPoolOptions): () => void {
+  if (!isSolanaAddress(options.pool) || !isSolanaAddress(options.mint))
+    throw new Error("Invalid Solana stream context");
+  const key = [options.pool, options.mint, options.commitment, validStreamUrl(options.endpoint)].join(":");
+  let channel = sharedPoolChannels.get(key);
+  const listener = { onTick: options.onTick, onStatus: options.onStatus };
+  if (!channel) {
+    const current: SharedPoolChannel = { listeners: new Set([listener]), stop: () => {} };
+    sharedPoolChannels.set(key, current);
+    try {
+      current.stop = createPoolSpotSubscription({
+        ...options,
+        onTick(tick) { current.tick = tick; current.listeners.forEach(l => l.onTick(tick)); },
+        onStatus(status) { current.status = status; current.listeners.forEach(l => l.onStatus(status)); },
+      });
+    } catch (error) { sharedPoolChannels.delete(key); throw error; }
+    channel = current;
+  } else {
+    channel.listeners.add(listener);
+    if (channel.status) listener.onStatus(channel.status);
+    if (channel.tick && Date.now() - channel.tick.receivedAt < 15_000) listener.onTick(channel.tick);
+  }
+  const active = channel;
+  let stopped = false;
+  return () => {
+    if (stopped) return;
+    stopped = true; active.listeners.delete(listener);
+    if (!active.listeners.size) { active.stop(); sharedPoolChannels.delete(key); }
+  };
+}
+export function poolStreamDiagnostics() {
+  return [...sharedPoolChannels.values()].map(channel => ({
+    subscribers: channel.listeners.size,
+    state: channel.status?.state ?? "connecting",
+    provider: channel.status?.provider ?? null,
+    eventAgeMs: channel.tick ? Math.max(0, Date.now() - channel.tick.receivedAt) : null,
+  }));
 }

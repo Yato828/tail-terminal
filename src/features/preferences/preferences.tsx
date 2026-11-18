@@ -10,6 +10,7 @@ import { readLocal, saveLocal } from "../../lib/validation";
 import { validStreamUrl } from "../../lib/poolStream";
 export type Preferences = {
   version: 1;
+  paletteRevision: 3;
   theme: "midnight" | "graphite" | "black";
   accent: string;
   density: "comfortable" | "compact";
@@ -40,8 +41,9 @@ export type Preferences = {
 };
 export const DEFAULT_PREFERENCES: Preferences = {
   version: 1,
+  paletteRevision: 3,
   theme: "black",
-  accent: "#eeeeee",
+  accent: "#ff812e",
   density: "comfortable",
   textSize: "normal",
   upColor: "#22c55e",
@@ -56,7 +58,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   streamEndpoint: "",
   astraBackend: "hosted",
   refreshSeconds: 5,
-  defaultInterval: "5m",
+  defaultInterval: "1h",
   visibleCandles: 120,
   followLatest: true,
   showMetrics: true,
@@ -70,6 +72,18 @@ export const DEFAULT_PREFERENCES: Preferences = {
 };
 export const isColor = (raw: unknown): raw is string =>
   typeof raw === "string" && /^#[\da-f]{6}$/i.test(raw);
+export function isWarmAccent(hex: string) {
+  if (!isColor(hex)) return false;
+  const r = parseInt(hex.slice(1, 3), 16),
+    g = parseInt(hex.slice(3, 5), 16),
+    b = parseInt(hex.slice(5, 7), 16);
+  return r >= 180 && g >= 65 && g <= r * 0.85 && b < g * 0.8;
+}
+export function isDirectionalColor(hex: string, direction: "up" | "down") {
+  if (!isColor(hex)) return false;
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return direction === "up" ? g > r * 1.15 && g > b : r > g * 2 && r > b * 1.2;
+}
 export function parsePreferences(raw: unknown): Preferences {
   if (!raw || typeof raw !== "object" || (raw as Preferences).version !== 1)
     return { ...DEFAULT_PREFERENCES };
@@ -97,6 +111,19 @@ export function parsePreferences(raw: unknown): Preferences {
   if ([80, 120, 200].includes(r.visibleCandles))
     next.visibleCandles = r.visibleCandles;
   if ([6, 12].includes(r.scenarioSteps)) next.scenarioSteps = r.scenarioSteps;
+  // Upgrade saved PART palettes once; retain independent trading colors and controls.
+  if (r.paletteRevision !== 3) {
+    next.theme = "black";
+    next.accent = DEFAULT_PREFERENCES.accent;
+    if (["1m", "5m", "15m"].includes(next.defaultInterval))
+      next.defaultInterval = "1h";
+  }
+  // TAIL brand accents stay warm; market direction keeps its green/red meaning.
+  if (!isWarmAccent(next.accent)) next.accent = DEFAULT_PREFERENCES.accent;
+  if (!isDirectionalColor(next.upColor, "up"))
+    next.upColor = DEFAULT_PREFERENCES.upColor;
+  if (!isDirectionalColor(next.downColor, "down"))
+    next.downColor = DEFAULT_PREFERENCES.downColor;
   return next;
 }
 const Context = createContext<{
@@ -160,28 +187,28 @@ export function featureEnabled(id: string, p: Preferences) {
 }
 export const THEME = {
   midnight: {
-    background: "#0b1018",
-    panel: "#101824",
-    raised: "#182232",
-    edge: "#273447",
-    text: "#e6edf7",
-    muted: "#92a3b9",
+    background: "#100d0c",
+    panel: "#181310",
+    raised: "#241c17",
+    edge: "#3b3028",
+    text: "#f5f1ed",
+    muted: "#aaa19a",
   },
   graphite: {
-    background: "#131619",
-    panel: "#1b1f24",
-    raised: "#252c34",
-    edge: "#35404a",
-    text: "#edf0f4",
-    muted: "#9ca8b6",
+    background: "#1b1918",
+    panel: "#24211f",
+    raised: "#2a2623",
+    edge: "#3b3530",
+    text: "#f5f1ed",
+    muted: "#aaa19a",
   },
   black: {
-    background: "#090909",
-    panel: "#111111",
-    raised: "#202020",
-    edge: "#353535",
-    text: "#eeeeee",
-    muted: "#999999",
+    background: "#141112",
+    panel: "#1b1718",
+    raised: "#211c1d",
+    edge: "#302929",
+    text: "#f5f1ed",
+    muted: "#aaa1a0",
   },
 } as const;
 
@@ -193,6 +220,6 @@ export function accentInk(hex: string) {
   const luminance =
     0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
   return (luminance + 0.05) / 0.055 > 1.05 / (luminance + 0.05)
-    ? "#09121d"
+    ? "#160e09"
     : "#ffffff";
 }

@@ -1,0 +1,234 @@
+.tail-info-dialog {
+  width: min(680px, calc(100% - 28px));
+  max-height: calc(100dvh - 36px);
+  margin: auto;
+  overflow: auto;
+  padding: 30px;
+  border: 1px solid #795135;
+  border-radius: 18px;
+  background: #201a18;
+  color: #f6eee6;
+  font:
+    14px/1.65 "Instrument Sans",
+    Arial,
+    sans-serif;
+  box-shadow: 0 25px 110px #0008;
+  scrollbar-width: thin;
+  scrollbar-color: #805238 #201a18;
+}
+.tail-info-dialog::backdrop {
+  background: #100c0bd9;
+  backdrop-filter: blur(6px);
+}
+.tail-info-dialog * {
+  box-sizing: border-box;
+}
+.tail-info-dialog :focus-visible {
+  outline: 2px solid #ff963b;
+  outline-offset: 4px;
+}
+.tail-info-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-right: 25px;
+}
+.tail-info-heading img {
+  flex-shrink: 0;
+}
+.tail-info-mark {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  color: #ff963b;
+  transform: rotate(12deg);
+}
+.tail-info-heading p,
+.tail-info-eyebrow {
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  line-height: 1.5;
+  color: #cba480;
+}
+.tail-info-heading h2 {
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+  margin: 7px 0 0;
+}
+.tail-info-dialog .tail-info-close {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  background: none;
+  border: 0;
+  color: #e5c8b1;
+  font-family: inherit;
+  font-size: 27px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 10px;
+}
+.tail-info-tabs {
+  display: flex;
+  gap: 7px;
+  border-bottom: 1px solid #503c2d;
+  margin-top: 26px;
+  padding-bottom: 13px;
+}
+.tail-info-tabs button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 25px;
+  flex: 1;
+  padding: 10px 13px;
+  border-radius: 8px;
+  border: 1px solid #594335;
+  background: #2a211c;
+  color: #bda590;
+  font:
+    12px "Instrument Sans",
+    Arial,
+    sans-serif;
+  cursor: pointer;
+}
+.tail-info-tabs button span {
+  font: 8px monospace;
+  opacity: 0.65;
+}
+.tail-info-tabs button[aria-selected="true"] {
+  color: #ff9b52;
+  border-color: #b26432;
+  background: #38251a;
+}
+.tail-info-content {
+  padding-top: 25px;
+  outline-offset: -2px;
+}
+.tail-info-content h3 {
+  font-size: 27px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
+  margin: 10px 0 16px;
+}
+.tail-info-content > p:not(.tail-info-eyebrow):not(.tail-info-note) {
+  font-size: 13px;
+  color: #c4b2a2;
+  margin: 0;
+  line-height: 1.8;
+}
+.tail-info-features {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin: 25px 0;
+}
+.tail-info-features article {
+  border-top: 1px solid #765032;
+  padding-top: 15px;
+}
+.tail-info-features b {
+  font-weight: 550;
+  font-size: 13px;
+  color: #f6dfc8;
+}
+.tail-info-features p {
+  font-size: 12px;
+  line-height: 1.75;
+  color: #bba390;
+  margin: 8px 0 0;
+}
+.tail-info-note {
+  padding: 13px 15px;
+  border-left: 2px solid #ae6938;
+  background: #2b2019;
+  color: #bda591;
+  font-size: 11px;
+  line-height: 1.8;
+  margin: 22px 0 0;
+}
+.tail-info-dialog .tail-info-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: #ff812e;
+  color: #211207;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 13px;
+  margin-top: 21px;
+}
+.tail-install-steps {
+  margin: 22px 0;
+  padding-left: 21px;
+  color: #edc9ab;
+}
+.tail-install-steps li {
+  padding-left: 8px;
+  margin: 18px 0;
+}
+.tail-install-steps li::marker {
+  color: #ff963b;
+  font-size: 12px;
+}
+.tail-install-steps li b,
+.tail-install-steps li span {
+  display: block;
+}
+.tail-install-steps li b {
+  color: #f2e5d8;
+  font-weight: 550;
+  font-size: 13px;
+}
+.tail-install-steps li span {
+  font-size: 12px;
+  color: #bda591;
+  margin-top: 5px;
+  line-height: 1.8;
+}
+.tail-install-steps code {
+  font-size: 11px;
+  color: #edc19c;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 500px) {
+  .tail-info-dialog {
+    padding: 23px 20px;
+  }
+  .tail-info-heading {
+    gap: 10px;
+  }
+  .tail-info-heading img {
+    width: 49px;
+    height: 49px;
+  }
+  .tail-info-heading h2 {
+    font-size: 23px;
+  }
+  .tail-info-heading p {
+    font-size: 8px;
+  }
+  .tail-info-content h3 {
+    font-size: 25px;
+  }
+  .tail-info-tabs button {
+    gap: 10px;
+    padding: 10px;
+    font-size: 11px;
+  }
+  .tail-info-features {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .tail-info-features article {
+    padding-top: 10px;
+  }
+  .tail-info-features p {
+    margin-top: 4px;
+  }
+}

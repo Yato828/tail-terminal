@@ -2,6 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_PART_SHELL?: string;
+  readonly VITE_TAIL_API_URL?: string;
+  readonly VITE_TAIL_STANDALONE?: string;
 }
 
 interface ImportMeta {

@@ -1,6 +1,7 @@
 import { rpc } from "../../lib/rpcFeed";
+import { parseWalletTransaction } from "../v2/intelligence/wallet";
 import { isSolanaAddress } from "../../lib/validation";
-export type WatchedWallet = { address: string; label: string; pinned: boolean };
+export type WatchedWallet = { address: string; label: string; pinned: boolean; color?: string; group?: string; favorite?: boolean; addedAt?: number; updatedAt?: number };
 export function parseWatchlist(raw: unknown): WatchedWallet[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
@@ -17,6 +18,11 @@ export function parseWatchlist(raw: unknown): WatchedWallet[] {
       address: w.address,
       label: typeof w.label === "string" ? w.label.slice(0, 48) : "Wallet",
       pinned: w.pinned === true,
+      ...(typeof w.color === "string" && /^#[0-9a-fA-F]{6}$/.test(w.color) ? { color: w.color } : {}),
+      ...(typeof w.group === "string" ? { group: w.group.slice(0, 40) } : {}),
+      ...(w.favorite === true ? { favorite: true } : {}),
+      ...(Number.isFinite(w.addedAt) ? { addedAt: w.addedAt } : {}),
+      ...(Number.isFinite(w.updatedAt) ? { updatedAt: w.updatedAt } : {}),
     }));
 }
 type ParsedTx = {
@@ -52,63 +58,21 @@ export function walletChanges(
   wallet: WatchedWallet,
   hash: string,
 ): WalletEvent[] {
-  const base = {
-    hash,
-    wallet: wallet.address,
-    label: wallet.label,
-    timestamp: tx.blockTime
-      ? new Date(tx.blockTime * 1000).toISOString()
-      : null,
-    source: "Solana mainnet RPC",
-    failed: !!tx.meta?.err,
-  };
-  if (!tx.meta || tx.meta.err)
-    return [{ ...base, mint: "", action: "Failed transaction", amount: 0 }];
-  const changes = new Map<string, number>();
-  for (const [rows, sign] of [
-    [tx.meta.preTokenBalances ?? [], -1],
-    [tx.meta.postTokenBalances ?? [], 1],
-  ] as const) {
-    for (const b of rows)
-      if (b.owner === wallet.address)
-        changes.set(
-          b.mint,
-          (changes.get(b.mint) ?? 0) +
-            sign * Number(b.uiTokenAmount.uiAmountString),
-        );
-  }
-  const rows: WalletEvent[] = [...changes]
-    .filter(([, v]) => Number.isFinite(v) && Math.abs(v) > 1e-12)
-    .map(([mint, delta]) => ({
-      ...base,
-      mint,
-      action: delta > 0 ? "Token net received" : "Token net sent",
-      amount: Math.abs(delta),
-    }));
-  const idx = tx.transaction.message.accountKeys.findIndex(
-    (k) => (typeof k === "string" ? k : k.pubkey) === wallet.address,
-  );
-  if (idx >= 0) {
-    const delta = (tx.meta.postBalances[idx] - tx.meta.preBalances[idx]) / 1e9;
-    if (Number.isFinite(delta) && delta !== 0)
-      rows.push({
-        ...base,
-        mint: "SOL",
-        action: "SOL net delta (incl. fees)",
-        amount: delta,
-      });
-  }
-  return rows.length
-    ? rows
-    : [
-        {
-          ...base,
-          mint: "",
-          action: "Transaction · no wallet balance change",
-          amount: 0,
-        },
-      ];
+  return parseWalletTransaction(tx, wallet.address, hash).map((row) => ({
+    hash, wallet: wallet.address, label: wallet.label,
+    timestamp: row.at !== null ? new Date(row.at).toISOString() : null,
+    mint: row.mint,
+    action: row.kind === "received" ? "Token net received"
+      : row.kind === "sent" ? "Token net sent"
+      : row.kind === "sol-delta" ? "SOL net delta (incl. fees)"
+      : row.kind === "failed" ? "Failed transaction"
+      : row.kind === "unavailable" ? "Transaction details unavailable"
+      : "Transaction · no wallet balance change",
+    amount: row.kind === "sol-delta" ? (row.delta ?? 0) : Math.abs(row.delta ?? 0),
+    source: "Solana mainnet RPC", failed: row.kind === "failed",
+  }));
 }
+
 export async function walletActivity(wallet: WatchedWallet, before?: string) {
   if (!isSolanaAddress(wallet.address))
     throw new Error("Invalid Solana wallet");

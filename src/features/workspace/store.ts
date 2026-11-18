@@ -2,6 +2,17 @@ import { useEffect, useState } from "react";
 import { isSolanaAddress, readLocal, saveLocal } from "../../lib/validation";
 
 export const MODULES = [
+  { id: 'studio', title: 'Workspace Studio', group: 'Workspace', detail: 'Multiple widget instances, independent or grouped token contexts and saved layouts' },
+  { id: 'charts', title: 'Multi-chart', group: 'Terminal', detail: 'Independent Solana charts, local indicators and linked crosshairs' },
+  { id: 'compare', title: 'Token Compare', group: 'Discover', detail: 'Compare up to four covered Solana mints with source evidence' },
+  { id: 'intelligence2', title: 'Wallet Intelligence', group: 'Intelligence', detail: 'Wallet groups, overlap, portfolio, security and Token Memory' },
+  { id: 'journal', title: 'Trade Journal', group: 'Workspace', detail: 'Private browser journal with clearly manual records and CSV export' },
+  { id: 'signals', title: 'Alert Rules', group: 'Workspace', detail: 'Foreground conditions over observed prices, volumes, liquidity and wallet activity' },
+  { id: 'data', title: 'Source Diagnostics', group: 'Workspace', detail: 'Measured provider latency, cache, errors and live stream state' },
+  { id: 'routes', title: 'Trading Routes', group: 'Terminal', detail: 'Buy/sell quotes and transaction status; execution disabled' },
+  { id: 'social', title: 'Social Notes', group: 'Intelligence', detail: 'Analyze provided text and save source links without scraping' },
+  { id: 'fabletools', title: 'Local Data Tools', group: 'Intelligence', detail: 'Strict factual tools without a paid AI request' },
+  { id: 'portfolio', title: 'Portfolio', group: 'Intelligence', detail: 'Observed SOL/SPL holdings, covered valuations and CSV' },
   {
     id: "terminal",
     title: "Terminal",
@@ -10,7 +21,7 @@ export const MODULES = [
   },
   {
     id: "astra",
-    title: "Astra",
+    title: "Fable 5.2",
     group: "Intelligence",
     detail: "Contextual AI chat · server connection required",
   },

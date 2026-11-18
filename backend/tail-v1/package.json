@@ -1,0 +1,14 @@
+{
+  "name": "tail-backend-v1",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "test": "node --test",
+    "smoke": "node examples/smoke.mjs"
+  },
+  "description": "Read-only Solana market, wallet, Jupiter quote and Fable analysis backend. Noncustodial."
+}

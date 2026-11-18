@@ -1,0 +1,1236 @@
+.tail-site-route:focus,
+.tail-terminal-route:focus {
+  outline: none;
+}
+.brand-star {
+  display: inline-block;
+  flex-shrink: 0;
+  overflow: visible;
+}
+.tail-site {
+  --orange: #ff812e;
+  --cream: #f6eee6;
+  --muted: #b2a49a;
+  --edge: #45372e;
+  --canvas: #151212;
+  --surface: #201a18;
+  background: var(--canvas);
+  color: var(--cream);
+  font-family: "Instrument Sans", Arial, sans-serif;
+  line-height: 1.5;
+  overflow: clip;
+}
+.tail-site *,
+.ts-install * {
+  box-sizing: border-box;
+}
+.tail-site h1,
+.tail-site h2,
+.tail-site h3,
+.tail-site p {
+  margin: 0;
+}
+.tail-site a {
+  color: inherit;
+  text-decoration: none;
+}
+.tail-site button,
+.ts-install button {
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+.tail-site button:focus-visible,
+.tail-site a:focus-visible,
+.ts-install :focus-visible {
+  outline: 2px solid #ff963b;
+  outline-offset: 5px;
+}
+.tail-site em {
+  font-style: normal;
+  color: var(--orange);
+}
+.tail-site .ts-nav {
+  height: 100px;
+  padding: 0 6%;
+  gap: 44px;
+  position: relative;
+  background: #151212;
+  border-bottom: 1px solid var(--edge);
+}
+.ts-nav:after {
+  display: none;
+}
+.ts-nav .tail-logo {
+  width: 200px;
+  height: 88px;
+  margin: 0 auto 0 0;
+  flex-shrink: 0;
+}
+.ts-nav nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  font-size: 13px;
+  color: #d3c6ba;
+}
+.ts-nav nav a:hover {
+  color: var(--orange);
+}
+.ts-nav nav > button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+}
+.ts-nav nav > button:hover {
+  color: var(--orange);
+}
+.ts-nav nav {
+  gap: 25px;
+}
+.ts-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 30px;
+  padding: 17px 24px;
+  border: 1px solid #ff812e;
+  border-radius: 8px;
+  background: #ff812e;
+  color: #1c100a !important;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+  transition:
+    background 0.15s,
+    transform 0.15s;
+}
+.ts-button:hover {
+  background: #ff9b52;
+  transform: translateY(-2px);
+}
+.ts-button span {
+  font-size: 21px;
+  line-height: 1;
+}
+.ts-button.ts-small {
+  padding: 13px 18px;
+  white-space: nowrap;
+}
+.tail-site .ts-menu {
+  display: none;
+}
+.ts-skip {
+  position: absolute;
+  top: -100px;
+  left: 20px;
+  z-index: 100;
+  padding: 12px;
+  background: #ff812e;
+  color: #151212 !important;
+}
+.ts-skip:focus {
+  top: 12px;
+}
+.ts-hero {
+  max-width: 1600px;
+  margin: auto;
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  padding: 90px 6% 75px;
+  min-height: 710px;
+  gap: 30px;
+  align-items: center;
+}
+.ts-kicker {
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.15em;
+  color: #c4b3a7;
+  line-height: 1.4;
+}
+.ts-category {
+  font-size: 14px;
+  color: #c4b3a7;
+}
+.ts-platforms {
+  font-size: 12px;
+  color: #aa998b;
+}
+.ts-kicker i,
+.ts-online {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #ff812e;
+  border-radius: 50%;
+  margin-right: 9px;
+  vertical-align: middle;
+}
+.ts-hero h1 {
+  font-size: clamp(75px, 7.8vw, 130px);
+  line-height: 0.94;
+  font-weight: 550;
+  letter-spacing: -0.065em;
+  margin: 32px 0;
+  position: relative;
+}
+.ts-title-star {
+  display: inline-block;
+  font-size: 0.42em;
+  color: var(--orange);
+  vertical-align: top;
+  margin: 0 0 0 10px;
+  transform: rotate(15deg);
+}
+.ts-lede {
+  font-size: 17px;
+  line-height: 1.7;
+  color: #d0c2b6;
+}
+.ts-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 32px 0 20px;
+  flex-wrap: wrap;
+}
+.ts-text-link {
+  font-size: 13px;
+  border: 0;
+  background: transparent;
+  color: #f6eee6;
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid #8b5d3d !important;
+}
+.ts-text-link:hover {
+  color: #ff963b;
+}
+.ts-fine {
+  font-size: 10px !important;
+  line-height: 1.7 !important;
+  color: #aa998b !important;
+}
+.ts-fine span {
+  padding: 0 8px;
+  color: #655044;
+}
+.ts-hero-art {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  isolation: isolate;
+}
+.ts-art-number {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font: 9px monospace;
+  letter-spacing: 0.12em;
+  color: #b49c88;
+}
+.ts-mascot-glow {
+  position: absolute;
+  inset: 7%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 40% 40%,
+    #9c4c26 0%,
+    #4a2c20 45%,
+    #211712 72%
+  );
+  box-shadow: inset 0 0 70px #ff812e15;
+  z-index: -2;
+}
+.ts-orbit {
+  position: absolute;
+  width: 107%;
+  height: 59%;
+  border: 1px solid #b36735;
+  border-radius: 50%;
+  transform: rotate(-27deg);
+  z-index: -1;
+}
+.ts-orbit:after {
+  content: "";
+  position: absolute;
+  inset: -20px 0;
+  border: 1px solid #613f2b;
+  border-radius: 50%;
+  transform: rotate(11deg);
+}
+.ts-hero-mascot {
+  display: block;
+  width: 86%;
+  height: 86%;
+}
+.ts-hero-mascot svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.ts-art-star {
+  position: absolute;
+  font-size: 80px;
+  color: #ff812e;
+  right: 0;
+  top: 16%;
+  transform: rotate(12deg);
+}
+.ts-art-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 11px;
+  color: #d9baa3;
+  text-align: right;
+}
+.ts-ticker {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 25px;
+  min-height: 66px;
+  border-block: 1px solid var(--edge);
+  padding: 15px 4%;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #d4bca8;
+}
+.ts-ticker i {
+  font-size: 23px;
+  color: #ff812e;
+  font-style: normal;
+}
+.ts-section {
+  max-width: 1600px;
+  padding: 105px 6%;
+  margin: auto;
+  scroll-margin-top: 30px;
+}
+.ts-section-heading {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 32px;
+  align-items: end;
+  margin-bottom: 50px;
+}
+.ts-section h2,
+.ts-last h2 {
+  font-size: clamp(32px, 3.6vw, 58px);
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+}
+.ts-section-heading > p:last-child {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 270px;
+}
+.ts-product-shot {
+  margin: 0;
+  border: 1px solid #60432f;
+  border-radius: 12px;
+  background: #201a18;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 30px 90px #0003;
+}
+.ts-windowbar {
+  height: 40px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  border-bottom: 1px solid #45372e;
+  color: #bb9f89;
+  background: #201a18;
+  font: 9px monospace;
+  letter-spacing: 0.06em;
+}
+.ts-windowbar > span:first-child {
+  display: flex;
+  gap: 5px;
+}
+.ts-windowbar > span i,
+.ts-browser-head > i {
+  width: 5px;
+  height: 5px;
+  border: 1px solid #b07952;
+  border-radius: 50%;
+  display: inline-block;
+}
+.ts-windowbar b {
+  font-weight: 500;
+}
+.ts-product-shot > img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+.ts-product-shot > figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 15px 20px;
+  border-top: 1px solid var(--edge);
+  color: var(--muted);
+  font-size: 13px;
+}
+.ts-features {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 48px;
+}
+.ts-features article {
+  display: grid;
+  grid-template-columns: 40px 0.8fr 1.3fr;
+  align-items: start;
+  gap: 25px;
+  padding: 26px 0;
+  border-top: 1px solid var(--edge);
+}
+.ts-features article > .brand-star {
+  width: 25px;
+  height: 25px;
+  color: #ff963b;
+  margin-top: 5px;
+}
+.ts-features article > span {
+  font: 10px monospace;
+  color: #b78461;
+}
+.ts-features h3 {
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+.ts-features p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.8;
+  max-width: 590px;
+}
+.ts-live {
+  padding-top: 0;
+}
+.ts-live-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 35px;
+  margin-bottom: 35px;
+}
+.ts-live-heading .ts-kicker {
+  margin-bottom: 18px;
+}
+.ts-live-heading > p {
+  max-width: 330px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.ts-live-heading .ts-text-link {
+  margin-top: 12px;
+}
+.ts-live-frame {
+  border: 1px solid #60432f;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1c1715;
+  min-height: 415px;
+}
+.ts-live-frame iframe {
+  width: 100%;
+  height: 760px;
+  border: 0;
+  display: block;
+  background: #151212;
+}
+.ts-live-frame .ts-windowbar button {
+  background: none;
+  border: 0;
+  color: #f7d6b9;
+  font: inherit;
+  cursor: pointer;
+}
+.ts-live-start {
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px;
+  gap: 15px;
+  background: radial-gradient(ellipse at 50% 50%, #54301b50, transparent 65%);
+}
+.ts-live-start h3 {
+  font-size: 27px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  text-align: center;
+}
+.ts-live-start p {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.ts-live-start .ts-button {
+  margin-top: 8px;
+}
+.ts-live > .ts-fine {
+  margin-top: 16px;
+}
+.ts-extension {
+  border-block: 1px solid var(--edge);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 10%;
+  background: linear-gradient(110deg, #2e1e16, #151212 65%);
+}
+.ts-extension > div:last-child > p:not(.ts-kicker):not(.ts-fine) {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 380px;
+  line-height: 1.8;
+  margin: 24px 0;
+}
+.ts-extension h2 {
+  margin-top: 23px;
+}
+.ts-extension .ts-fine {
+  margin-top: 17px;
+}
+.ts-extension-art {
+  position: relative;
+  border: 1px solid #70543f;
+  border-radius: 12px;
+  min-height: 340px;
+  background: #151212;
+}
+.ts-browser-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 39px;
+  padding: 0 15px;
+  border-bottom: 1px solid #45372e;
+}
+.ts-browser-head span {
+  flex: 1;
+  border-radius: 5px;
+  background: #28201d;
+  margin: 0 8px 0 20px;
+  font: 9px monospace;
+  color: #a28d7d;
+  text-align: center;
+  padding: 4px;
+}
+.ts-browser-head b {
+  color: #ff812e;
+}
+.ts-pocket {
+  width: 74%;
+  position: relative;
+  margin: 35px auto -30px;
+  padding: 24px;
+  background: #251c17;
+  border: 1px solid #ac6435;
+  border-radius: 13px;
+  box-shadow: 15px 20px 50px #0005;
+}
+.ts-pocket > img {
+  vertical-align: middle;
+  margin-right: 5px;
+}
+.ts-pocket > b {
+  font-size: 22px;
+  font-style: italic;
+  letter-spacing: -0.04em;
+}
+.ts-pocket > b > .brand-star {
+  width: 22px;
+  height: 22px;
+  margin-left: 14px;
+  color: #ff963b;
+  vertical-align: middle;
+}
+.ts-pocket-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  color: #e5bea0;
+  padding-top: 17px;
+  border-top: 1px solid #63432e;
+}
+.ts-pocket-shortcut > span {
+  color: #ff963b;
+  font-size: 21px;
+}
+.ts-pocket-companion {
+  position: absolute;
+  left: -35px;
+  bottom: -58px;
+  width: 176px;
+  height: 176px;
+  object-fit: contain;
+  pointer-events: none;
+}
+.ts-preview-star {
+  width: 58px;
+  height: 58px;
+  color: #ff963b;
+  margin: 12px 0 15px;
+  transform: rotate(12deg);
+}
+.ts-pocket > b > span {
+  font-size: 8px;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  color: #c7a185;
+}
+.ts-pocket > p {
+  font-size: 38px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin: 25px 0 30px;
+}
+.ts-pocket-bottom {
+  font: 8px monospace;
+  color: #ff9b52;
+  letter-spacing: 0.08em;
+}
+.ts-extension-star {
+  position: absolute;
+  right: -25px;
+  bottom: 5px;
+  width: 95px;
+  height: 95px;
+  color: #ff812e;
+  line-height: 1;
+}
+.ts-faq {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0 80px;
+}
+.ts-faq > h2 {
+  grid-row: 1/5;
+  padding-top: 18px;
+  font-size: clamp(29px, 3vw, 44px);
+}
+.ts-faq details {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--edge);
+  font-size: 15px;
+}
+.ts-faq summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.ts-faq summary:after {
+  content: "+";
+  color: #ff812e;
+  font-size: 19px;
+}
+.ts-faq details[open] summary:after {
+  content: "−";
+}
+.ts-faq details p {
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin-top: 18px;
+  max-width: 650px;
+}
+.ts-last {
+  padding: 60px 6% 100px;
+  max-width: 1600px;
+  margin: auto;
+}
+.ts-last > .ts-kicker {
+  margin-bottom: 25px;
+}
+.ts-last h2 {
+  font-size: clamp(60px, 9vw, 145px);
+  margin-bottom: 36px;
+}
+.ts-last h2 > span {
+  float: right;
+  color: #ff812e;
+}
+.ts-footer {
+  padding: 34px 6%;
+  border-top: 1px solid var(--edge);
+  display: flex;
+  gap: 35px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+.ts-footer > b {
+  font-size: 30px;
+  font-style: italic;
+  font-weight: 750;
+  color: var(--cream);
+  margin-right: auto;
+}
+.ts-footer > b > span {
+  font-size: 25px;
+  color: #ff812e;
+  margin-left: 10px;
+}
+.ts-footer button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.ts-install {
+  width: min(560px, calc(100% - 30px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  border: 1px solid #8b5c39;
+  border-radius: 16px;
+  background: #201a18;
+  color: #f6eee6;
+  padding: 38px;
+  font:
+    14px/1.6 "Instrument Sans",
+    Arial,
+    sans-serif;
+  box-shadow: 0 20px 120px #0009;
+}
+.ts-install::backdrop {
+  background: #100c0bd9;
+  backdrop-filter: blur(6px);
+}
+.ts-install h2 {
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  margin: 18px 0;
+}
+.ts-install > p {
+  color: #c3afa0;
+  font-size: 13px;
+}
+.ts-install > .ts-button {
+  margin-top: 20px;
+  text-decoration: none;
+}
+.ts-install ol {
+  padding-left: 20px;
+  margin: 28px 0;
+}
+.ts-install li {
+  padding-left: 8px;
+  margin: 17px 0;
+}
+.ts-install li::marker {
+  color: #ff812e;
+}
+.ts-install li b,
+.ts-install li span {
+  display: block;
+}
+.ts-install li span {
+  font-size: 12px;
+  color: #baab9e;
+  margin-top: 5px;
+}
+.ts-install code {
+  font-size: 11px;
+  color: #edc19c;
+  overflow-wrap: anywhere;
+}
+.ts-close {
+  position: absolute;
+  right: 16px;
+  top: 10px;
+  font-size: 25px;
+  border: 0;
+  background: transparent;
+  padding: 4px 10px;
+}
+@media (max-width: 1000px) {
+  .tail-site .ts-nav {
+    padding-inline: 4%;
+    gap: 24px;
+  }
+  .ts-nav nav {
+    gap: 20px;
+    font-size: 12px;
+  }
+  .ts-nav .tail-logo {
+    width: 165px;
+  }
+  .ts-hero {
+    padding-top: 70px;
+    min-height: 600px;
+  }
+  .ts-hero h1 {
+    font-size: 85px;
+  }
+  .ts-hero-art {
+    margin-left: -20px;
+  }
+  .ts-art-star {
+    font-size: 55px;
+  }
+  .ts-section-heading {
+    grid-template-columns: 1.4fr 1fr;
+  }
+  .ts-section-heading > p:last-child {
+    grid-column: 2;
+    max-width: none;
+  }
+  .ts-section {
+    padding-inline: 5%;
+  }
+  .ts-faq {
+    gap: 0 40px;
+  }
+  .ts-pocket {
+    width: 85%;
+    padding: 15px;
+  }
+  .ts-pocket > p {
+    font-size: 30px;
+  }
+}
+@media (max-width: 700px) {
+  .tail-site .ts-nav {
+    height: 80px;
+    gap: 16px;
+    padding: 0 18px;
+  }
+  .ts-nav .tail-logo {
+    width: 140px;
+    height: 76px;
+  }
+  .ts-nav .tail-logo .tail-mascot {
+    width: 60px;
+  }
+  .tail-site .ts-menu {
+    display: block;
+    border: 0;
+    background: none;
+    font-size: 20px;
+    padding: 5px;
+    order: 3;
+    color: #f6eee6;
+  }
+  .ts-nav nav {
+    display: none;
+    position: absolute;
+    top: 79px;
+    left: 0;
+    right: 0;
+    padding: 25px;
+    background: #201a18;
+    border-bottom: 1px solid #70543f;
+    z-index: 80;
+  }
+  .ts-nav nav.open {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+  }
+  .ts-nav > .ts-button {
+    font-size: 11px;
+    padding: 11px;
+    gap: 10px;
+  }
+  .ts-nav .tail-orbit {
+    width: 145px;
+  }
+  .ts-nav .tail-wordmark {
+    left: 52px;
+    top: 25px;
+    width: 80px;
+    height: 25px;
+  }
+  .ts-hero {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 60px 6% 45px;
+  }
+  .ts-hero h1 {
+    font-size: clamp(65px, 14vw, 100px);
+    margin: 25px 0;
+  }
+  .ts-lede {
+    font-size: 15px;
+  }
+  .ts-actions {
+    gap: 18px;
+  }
+  .ts-hero-art {
+    margin: 15px auto 0;
+    width: 80%;
+    max-width: 430px;
+  }
+  .ts-hero-mascot {
+    width: 88%;
+    height: 88%;
+  }
+  .ts-art-label {
+    font-size: 9px;
+  }
+  .ts-art-number {
+    font-size: 8px;
+  }
+  .ts-ticker {
+    justify-content: flex-start;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 8px;
+    gap: 20px;
+    min-height: 55px;
+  }
+  .ts-section {
+    padding: 65px 6%;
+  }
+  .ts-section-heading {
+    display: block;
+  }
+  .ts-section-heading h2 {
+    margin: 20px 0;
+  }
+  .ts-section-heading > p:last-child {
+    max-width: 400px;
+  }
+  .ts-product-shot > figcaption {
+    padding: 12px;
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+  .ts-windowbar {
+    padding: 0 10px;
+    height: 32px;
+    font-size: 7px;
+  }
+  .ts-windowbar > span:last-child {
+    font-size: 6px;
+  }
+  .ts-features {
+    grid-template-columns: 1fr;
+    gap: 25px;
+    margin-top: 25px;
+  }
+  .ts-features article {
+    grid-template-columns: 26px 1fr;
+    gap: 12px 16px;
+    padding: 22px 0;
+  }
+  .ts-features article > p {
+    grid-column: 2;
+  }
+  .ts-features h3 {
+    margin: 8px 0;
+    font-size: 23px;
+  }
+  .ts-features p {
+    max-width: none;
+  }
+  .ts-live {
+    padding-top: 5px;
+  }
+  .ts-live-heading {
+    display: block;
+  }
+  .ts-live-heading > p {
+    margin-top: 25px;
+    max-width: none;
+  }
+  .ts-live-frame iframe {
+    height: 700px;
+  }
+  .ts-live-start {
+    min-height: 350px;
+    padding: 22px 14px;
+  }
+  .ts-live-start h3 {
+    font-size: 24px;
+  }
+  .ts-extension {
+    grid-template-columns: 1fr;
+    gap: 85px;
+  }
+  .ts-extension-art {
+    width: 90%;
+    margin: auto;
+    min-height: 300px;
+  }
+  .ts-pocket {
+    width: 80%;
+    padding: 22px;
+  }
+  .ts-pocket > p {
+    font-size: 37px;
+  }
+  .ts-extension-star {
+    width: 75px;
+    height: 75px;
+    right: -24px;
+  }
+  .ts-faq {
+    display: block;
+  }
+  .ts-faq > h2 {
+    padding: 0;
+    margin-bottom: 25px;
+  }
+  .ts-faq details {
+    font-size: 14px;
+  }
+  .ts-last {
+    padding: 15px 6% 65px;
+  }
+  .ts-last h2 {
+    font-size: clamp(48px, 12vw, 80px);
+  }
+  .ts-last h2 > span {
+    font-size: 0.7em;
+  }
+  .ts-footer {
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 30px 6%;
+    font-size: 10px;
+  }
+  .ts-footer > b {
+    width: 40%;
+  }
+  .ts-footer > p {
+    width: 40%;
+    text-align: right;
+  }
+  .ts-install {
+    padding: 30px 24px;
+  }
+  .ts-install h2 {
+    font-size: 29px;
+  }
+}
+@media (min-width: 701px) and (max-width: 1050px) {
+  .tail-site .ts-menu {
+    display: block;
+    border: 0;
+    background: transparent;
+    color: #f6eee6;
+    font-size: 21px;
+    padding: 5px;
+    order: 3;
+  }
+  .ts-nav nav {
+    display: none;
+    position: absolute;
+    top: 99px;
+    left: 0;
+    right: 0;
+    padding: 25px;
+    background: #201a18;
+    border-bottom: 1px solid #70543f;
+    z-index: 80;
+  }
+  .ts-nav nav.open {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 24px;
+  }
+}
+@media (max-width: 1050px) {
+  .ts-nav nav .tail-social-links {
+    flex-basis: 100%;
+    justify-content: center;
+    gap: 14px;
+  }
+}
+@media (max-width: 380px) {
+  .tail-site .ts-nav {
+    padding-inline: 14px;
+    gap: 10px;
+  }
+  .ts-nav .tail-logo {
+    width: 115px;
+  }
+  .ts-nav .tail-orbit {
+    width: 120px;
+  }
+  .ts-nav .tail-wordmark {
+    width: 75px;
+    left: 38px;
+  }
+  .ts-nav .tail-logo .tail-mascot {
+    width: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tail-site * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Approved star skiff; the mascot floats independently using its original PNG rig. */
+.ts-flight-scene {
+  min-width: 0;
+}
+.ts-flight-trails {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: #b56d42;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.65;
+}
+.ts-flight-trail-faint {
+  opacity: 0.35;
+}
+.ts-flight-deck {
+  position: absolute;
+  inset: 0;
+  animation: tail-skiff-drift 9s ease-in-out infinite;
+  transform-origin: 55% 67%;
+}
+.ts-star-skiff {
+  position: absolute;
+  width: 96%;
+  height: 48%;
+  left: 2%;
+  top: 44%;
+}
+.ts-flight-body {
+  position: absolute;
+  width: min(72%, 320px);
+  aspect-ratio: 1;
+  left: 20%;
+  top: 13%;
+  transform: rotate(28deg);
+  animation: tail-free-float 8s ease-in-out infinite;
+  transform-origin: 50% 50%;
+  z-index: 2;
+}
+.ts-free-flight .ts-hero-mascot {
+  width: 100%;
+  height: 100%;
+}
+.ts-nav-star {
+  position: absolute;
+  z-index: 3;
+  color: #ff963b;
+}
+.ts-nav-star.star-a {
+  width: 68px;
+  height: 68px;
+  right: 7%;
+  top: 8%;
+  transform: rotate(16deg);
+}
+.ts-nav-star.star-b {
+  width: 24px;
+  height: 24px;
+  left: 8%;
+  top: 26%;
+  color: #f0c7a1;
+  transform: rotate(-10deg);
+}
+.ts-nav-star.star-c {
+  width: 35px;
+  height: 35px;
+  right: 6%;
+  bottom: 12%;
+  transform: rotate(25deg);
+}
+.ts-nav-star.star-d {
+  width: 18px;
+  height: 18px;
+  left: 11%;
+  bottom: 10%;
+  color: #b17d57;
+}
+.ts-flight-signature {
+  position: absolute;
+  right: 17%;
+  bottom: 2%;
+  font-size: 29px;
+  font-style: italic;
+  font-weight: 750;
+  letter-spacing: -1.5px;
+  color: #e2c5ad;
+  transform: rotate(-12deg);
+}
+@keyframes tail-skiff-drift {
+  0%,
+  100% {
+    transform: translateY(5px) rotate(-1.2deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(1.2deg);
+  }
+}
+@keyframes tail-free-float {
+  0%,
+  100% {
+    transform: translate(-6px, 8px) rotate(26deg);
+  }
+  50% {
+    transform: translate(7px, -10px) rotate(33deg);
+  }
+}
+@media (max-width: 700px) {
+  .ts-flight-scene {
+    width: 100%;
+    margin-top: 16px;
+  }
+  .ts-nav-star.star-a {
+    width: 42px;
+    height: 42px;
+  }
+  .ts-flight-signature {
+    font-size: 23px;
+  }
+  .ts-pocket-companion {
+    width: 145px;
+    height: 145px;
+    left: -20px;
+    bottom: -45px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ts-flight-body,
+  .ts-flight-deck {
+    animation: none;
+  }
+}
+.tail-site.reduce-motion .ts-flight-body,
+.tail-site.reduce-motion .ts-flight-deck {
+  animation: none;
+}

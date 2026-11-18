@@ -10,6 +10,7 @@ import {
 } from "../preferences/preferences";
 import { validStreamUrl } from "../../lib/poolStream";
 import { isExtension } from "../../lib/env";
+import {clearBrowserModuleData} from '../v2/storage';
 function SettingRow({
   title,
   detail,
@@ -108,7 +109,7 @@ export default function Settings({
         {[
           ["appearance", "Appearance"],
           ["chart", "Chart & live data"],
-          ["features", "Features & Astra"],
+          ["features", "Features & Fable 5.2"],
           ["connections", "Connections"],
           ["data", "Layout & data"],
         ].map(([id, title]) => (
@@ -131,9 +132,9 @@ export default function Settings({
           </p>
           <div className="theme-presets">
             {[
-              ["midnight", "Midnight", "#0b1018"],
-              ["graphite", "Graphite", "#1b1f24"],
-              ["black", "Black", "#090909"],
+              ["midnight", "Midnight", "#100d0c"],
+              ["graphite", "Graphite", "#1b1918"],
+              ["black", "Black", "#141112"],
             ].map(([value, label, color]) => (
               <button
                 key={value}
@@ -152,10 +153,10 @@ export default function Settings({
           </div>
           <SettingRow
             title="Interface accent"
-            detail="Selected tabs, focus outlines and primary controls."
+            detail="Warm orange accents for selected tabs, focus outlines and primary controls."
           >
             <div className="color-options">
-              {["#77bdfb", "#72d6b0", "#c4a2ff", "#f0bd75", "#eeeeee"].map(
+              {["#ff812e", "#ff963b", "#ea6018", "#ff9854", "#f0bd75"].map(
                 (color) => (
                   <button
                     key={color}
@@ -167,12 +168,6 @@ export default function Settings({
                   />
                 ),
               )}
-              <input
-                aria-label="Custom accent color"
-                type="color"
-                value={p.accent}
-                onChange={(e) => update({ accent: e.target.value })}
-              />
             </div>
           </SettingRow>
           <SettingRow
@@ -319,10 +314,10 @@ export default function Settings({
               </button>
               <button
                 onClick={() =>
-                  update({ upColor: "#60a5fa", downColor: "#fb923c" })
+                  update({ upColor: "#10b981", downColor: "#f43f5e" })
                 }
               >
-                Blue / orange
+                Emerald / rose
               </button>
             </div>
           </SettingRow>
@@ -440,17 +435,17 @@ export default function Settings({
         <div className="settings-section">
           <h2>Enable the tools you use</h2>
           <SettingRow
-            title="Astra chart scenarios"
+            title="Fable 5.2 chart scenarios"
             detail="Adds an optional AI-drawn hypothetical path to the chart. You choose when to generate it; enabling this never sends a paid request automatically."
           >
-            {toggle("aiScenario", "Enable Astra chart scenarios")}
+            {toggle("aiScenario", "Enable Fable 5.2 chart scenarios")}
           </SettingRow>
           <SettingRow
             title="Scenario horizon"
             detail="How many future chart intervals the generated illustration covers."
           >
             <select
-              aria-label="Astra scenario horizon"
+              aria-label="Fable 5.2 scenario horizon"
               value={p.scenarioSteps}
               onChange={(e) =>
                 update({ scenarioSteps: Number(e.target.value) as 6 | 12 })
@@ -463,7 +458,7 @@ export default function Settings({
           <div className="scenario-explainer">
             <b>Possible path, not a price forecast</b>
             <p>
-              Astra receives a verified source snapshot and proposes one
+              Fable 5.2 receives a verified source snapshot and proposes one
               illustrative scenario. It has no validated predictive accuracy,
               success rate or trading signal. Actual market candles remain
               separate. Generate requests use your configured billed API.
@@ -494,11 +489,11 @@ export default function Settings({
           <h2>Data & assistant connections</h2>
           {isExtension() && (
             <SettingRow
-              title="Astra backend"
-              detail="Hosted uses the deployed PART API. Local uses http://localhost:4664 while npm run dev is running. The server must allow this installed extension's exact origin; OpenAI keys remain server-side."
+              title="Fable 5.2 backend"
+              detail="Choose the Fable 5.2 connection for this workspace."
             >
               <select
-                aria-label="Extension Astra backend"
+                aria-label="Extension Fable 5.2 backend"
                 value={p.astraBackend}
                 onChange={(e) =>
                   update({ astraBackend: e.target.value as "hosted" | "local" })
@@ -560,18 +555,14 @@ export default function Settings({
               Check API connection
             </button>
             <span className="connection-badge">
-              {status?.ready ? "Astra configured" : "Setup required"}
+              {status?.ready ? "Fable 5.2 connected" : "Currently unavailable"}
             </span>
           </div>
           <div className="settings-grid">
             <div>
-              <h3>Astra / OpenAI</h3>
+              <h3>Fable 5.2</h3>
               <p>{status?.reason ?? "Checking…"}</p>
-              <p>
-                Configured model: {status?.model ?? "None"}
-                <br />
-                Rate limiter: {status?.rateLimit ?? "Unknown"}
-              </p>
+              <p>Model: Fable 5.2</p>
             </div>
             <div>
               <h3>Markets / chart</h3>
@@ -598,11 +589,6 @@ export default function Settings({
               </p>
             </div>
           </div>
-          <p className="data-note">
-            Configuration checked: {at ? new Date(at).toISOString() : "Pending"}
-            . Configuration does not verify provider uptime or account model
-            access.
-          </p>
         </div>
       )}
       {section === "data" && (
@@ -619,22 +605,9 @@ export default function Settings({
             stay in this browser. No private keys are stored.
           </p>
           <button
-            onClick={() => {
-              try {
-                for (const key of [
-                  "part.astra.threads.v1",
-                  "part.astra.session",
-                  "part.wallets.v1",
-                  "part.wallet.selected",
-                  "part.tokenDraft.v1",
-                  "part.marketWatch.v1",
-                ])
-                  localStorage.removeItem(key);
-                window.dispatchEvent(new Event("part:clear-data"));
-                setNotice("Local module data cleared.");
-              } catch {
-                setError("Local storage is unavailable.");
-              }
+            onClick={async() => {
+              const cleared=await clearBrowserModuleData();
+              setNotice(cleared.local&&cleared.idb?'Local module data cleared.':'Cleared available local stores; some browser storage is unavailable.');
             }}
           >
             Clear local module data

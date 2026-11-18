@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "format": "continuous-2d-raster-rig",
+  "sourceFrameSize": 320,
+  "recommendedCssSize": [
+    96,
+    160
+  ],
+  "previewFps": 30,
+  "states": {
+    "idle": {
+      "label": "Calm breathing",
+      "duration": 0,
+      "priority": 0
+    },
+    "idle_look": {
+      "label": "Look around",
+      "duration": 3.4,
+      "priority": 1
+    },
+    "idle_stretch": {
+      "label": "Stretch",
+      "duration": 3,
+      "priority": 1
+    },
+    "welcome": {
+      "label": "Welcome wave",
+      "duration": 3,
+      "priority": 10
+    },
+    "thinking": {
+      "label": "Thinking",
+      "duration": 0,
+      "priority": 50
+    },
+    "analyzing": {
+      "label": "Analyze charts",
+      "duration": 0,
+      "priority": 60
+    },
+    "searching": {
+      "label": "Search tokens",
+      "duration": 0,
+      "priority": 45
+    },
+    "typing": {
+      "label": "Working on laptop",
+      "duration": 0,
+      "priority": 30
+    },
+    "success": {
+      "label": "Completed",
+      "duration": 2.7,
+      "priority": 65
+    },
+    "warning": {
+      "label": "Attention",
+      "duration": 2.9,
+      "priority": 80
+    },
+    "error": {
+      "label": "Request error",
+      "duration": 2.7,
+      "priority": 85
+    },
+    "sleep": {
+      "label": "Sleeping",
+      "duration": 0,
+      "priority": 0
+    },
+    "wake": {
+      "label": "Wake up",
+      "duration": 2.5,
+      "priority": 5
+    },
+    "loading": {
+      "label": "Terminal loading",
+      "duration": 0,
+      "priority": 70
+    },
+    "tap": {
+      "label": "Curious tap",
+      "duration": 1.8,
+      "priority": 12
+    },
+    "tickle": {
+      "label": "Tickle",
+      "duration": 2.6,
+      "priority": 13
+    },
+    "secret": {
+      "label": "Five-click surprise",
+      "duration": 3.8,
+      "priority": 14
+    }
+  }
+}

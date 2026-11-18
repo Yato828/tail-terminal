@@ -1,0 +1,27 @@
+.tail-social-links {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.tail-social-links > span {
+  display: inline-flex;
+}
+.tail-social-links button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  border: 1px solid #5b4637;
+  border-radius: 8px;
+  background: #251c17;
+  color: #d3b59b;
+  cursor: default;
+  opacity: 0.8;
+}
+.tail-social-links svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}

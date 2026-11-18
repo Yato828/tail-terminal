@@ -1,6 +1,10 @@
+import { tailBackendEnabled } from "../services/backend/config";
+import { tailApi } from "../services/backend/client";
 import { WSOL, USDC } from "./const";
 import { getJson } from "./http";
 export type AxiomCoin = {
+  source?: string;
+  observedAt?: string;
   symbol: string;
   name: string;
   address: string;
@@ -122,6 +126,8 @@ export function mergePulseCoins(coins: AxiomCoin[]) {
   );
 }
 export async function searchAxioms(query: string): Promise<AxiomCoin[]> {
+  if (tailBackendEnabled())
+    return (await import("../services/backend/market")).backendSearch(query);
   const q = query.trim();
   if (!q) return [];
   const body = isPoolAddr(q)
@@ -147,6 +153,8 @@ export async function fetchBestPool(token: string) {
   return (await fetchSolCoinByAddress(token))?.pairAddress;
 }
 export async function fetchSolanaPool(mint: string, pool: string) {
+  if (tailBackendEnabled())
+    return (await import("../services/backend/market")).backendPool(mint, pool);
   if (!isPoolAddr(mint) || !isPoolAddr(pool))
     throw new Error("Invalid Solana mint or pool");
   const body = await getJson<{ pairs?: DexPair[] }>(
@@ -164,6 +172,8 @@ export async function fetchAxiomLive(coin: AxiomCoin) {
   return { ...pair, logo: pair.logo || coin.logo };
 }
 export async function fetchAxiomFeed(): Promise<AxiomCoin[]> {
+  if (tailBackendEnabled())
+    return (await import("../services/backend/market")).backendMarkets();
   const marketMints = [
     WSOL,
     USDC,
@@ -213,6 +223,8 @@ export async function fetchAxiomFeed(): Promise<AxiomCoin[]> {
   return mergePulseCoins(coins).slice(0, 40);
 }
 export async function fetchPulseLaunches() {
+  if (tailBackendEnabled())
+    return (await import("../services/backend/market")).backendNewPairs();
   const profiles = await getJson<
     Array<{ chainId: string; tokenAddress: string }>
   >("/dex/token-profiles/latest/v1", 10000);
@@ -367,8 +379,19 @@ export function parsePaprikaOhlcv(rows: PaprikaBar[]) {
 }
 export type CandleResult = {
   bars: Candle[];
-  source: "GeckoTerminal" | "DexPaprika" | "DexPaprika trades" | "Solana RPC";
+  source:
+    | "GeckoTerminal"
+    | "DexPaprika"
+    | "DexPaprika trades"
+    | "Solana RPC"
+    | "Candle / Birdeye"
+    | "Candle";
   fetchedAt: number;
+  warning?: string;
+  historyLimited?: boolean;
+  scope?: "pool" | "token";
+  volumeUnit?: "usd" | "token";
+  paging?: boolean;
 };
 const cache = new Map<string, CandleResult>();
 const pending = new Map<string, Promise<CandleResult>>();
@@ -388,6 +411,74 @@ export async function loadCandleResult(
 ): Promise<CandleResult> {
   if (!isPoolAddr(pool) || !IV_MS[iv])
     throw new Error("Invalid Solana pool or interval");
+  if (tailBackendEnabled()) {
+    const r = await tailApi.candles(pool, iv, token, before);
+    if (
+      r.pool !== pool ||
+      r.interval !== iv ||
+      r.token !== (token ?? "base") ||
+      r.live !== false ||
+      !Array.isArray(r.candles)
+    )
+      throw new Error("Mismatched historical candle response");
+    const bars = normalizeCandles(
+      r.candles
+        .filter((b) =>
+          [
+            b.time,
+            b.open,
+            b.high,
+            b.low,
+            b.close,
+            r.volumeUnit === "token" ? b.volume : b.volumeUsd,
+          ].every((n) => typeof n === "number" && Number.isFinite(n)),
+        )
+        .map((b) => ({
+          t: b.time * 1000,
+          o: b.open,
+          h: b.high,
+          l: b.low,
+          c: b.close,
+          v: (r.volumeUnit === "token" ? b.volume : b.volumeUsd) as number,
+        })),
+    );
+    if (!bars.length && !before)
+      throw new Error("No historical candles returned by TAIL Backend V1.");
+    const fetchedAt = Date.parse(r.asOf);
+    if (!Number.isFinite(fetchedAt))
+      throw new Error("Missing candle observation time");
+    if (
+      !["GeckoTerminal", "DexPaprika", "Candle / Birdeye", "Candle"].includes(
+        r.source,
+      )
+    )
+      throw new Error("Unrecognized historical candle source");
+    if (r.scope != null && r.scope !== "pool" && r.scope !== "token")
+      throw new Error("Invalid history scope");
+    if (
+      r.volumeUnit != null &&
+      r.volumeUnit !== "usd" &&
+      r.volumeUnit !== "token"
+    )
+      throw new Error("Invalid volume denomination");
+    if (
+      (r.source === "Candle / Birdeye" || r.source === "Candle") &&
+      (r.scope !== "token" || !["usd", "token"].includes(r.volumeUnit ?? ""))
+    )
+      throw new Error(
+        "Token history is missing explicit source scope or volume units",
+      );
+    return {
+      bars,
+      source: r.source as CandleResult["source"],
+      fetchedAt,
+      warning: r.warning,
+      historyLimited: r.historyLimited === true,
+      scope: r.scope ?? "pool",
+      volumeUnit: r.volumeUnit ?? "usd",
+      paging: r.paging === true,
+    };
+  }
   const k = key(pool, iv, token) + (before ? `:${before}` : "");
   const hit = cache.get(k);
   if (

@@ -7,7 +7,12 @@ dist-ext
 .env
 .env.*
 .vercel
+.tail-v2-worktrees/
+.tail-v2-baseline/
 
 !.env.example
 playwright-report
 test-results
+artifacts/
+.reference/
+backend/tail-v1/data/

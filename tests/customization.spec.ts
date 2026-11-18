@@ -40,16 +40,18 @@ test("all appearance controls apply immediately, persist and reset", async ({
       id,
     );
   }
-  for (const value of ["#77bdfb", "#72d6b0", "#c4a2ff", "#f0bd75", "#eeeeee"]) {
+  for (const value of ["#ff812e", "#ff963b", "#ea6018", "#ff9854", "#f0bd75"]) {
     await page
       .getByRole("button", { name: `Accent ${value}`, exact: true })
       .click();
     await expect.poll(async () => (await preferences(page)).accent).toBe(value);
   }
-  await color(page, "Custom accent color", "#ffcc44");
+  await page
+    .getByRole("button", { name: "Accent #ff963b", exact: true })
+    .click();
   await expect
     .poll(async () => (await preferences(page)).accent)
-    .toBe("#ffcc44");
+    .toBe("#ff963b");
   await page.getByLabel("Interface density").selectOption("compact");
   await page.getByLabel("Interface text size").selectOption("large");
   await page.getByRole("switch", { name: "Reduce interface motion" }).check();
@@ -78,12 +80,14 @@ test("all appearance controls apply immediately, persist and reset", async ({
     "large",
   );
   await page.getByRole("button", { name: "Restore defaults" }).click();
-  await expect.poll(() => preferences(page)).toMatchObject({
-    theme: "black",
-    accent: "#eeeeee",
-    upColor: "#22c55e",
-    downColor: "#ef4444",
-  });
+  await expect
+    .poll(() => preferences(page))
+    .toMatchObject({
+      theme: "black",
+      accent: "#ff812e",
+      upColor: "#22c55e",
+      downColor: "#ef4444",
+    });
   await expect(page.locator(".modular-terminal")).toHaveAttribute(
     "data-density",
     "comfortable",
@@ -96,11 +100,11 @@ test("chart preferences, color presets and every chart switch are saved", async 
   await enter(page);
   await settings(page, "Chart & live data");
   await page
-    .getByRole("button", { name: "Blue / orange", exact: true })
+    .getByRole("button", { name: "Emerald / rose", exact: true })
     .click();
   await expect
     .poll(async () => (await preferences(page)).upColor)
-    .toBe("#60a5fa");
+    .toBe("#10b981");
   await page.getByRole("button", { name: "Green / red", exact: true }).click();
   await expect
     .poll(async () => (await preferences(page)).downColor)
@@ -150,7 +154,7 @@ test("feature switches disable only their tools; layout and data actions work", 
 }) => {
   await fixtures(page);
   await enter(page);
-  await settings(page, "Features & Astra");
+  await settings(page, "Features & Fable 5.2");
   for (const name of [
     "Enable trade tape",
     "Enable holder research",
@@ -180,7 +184,9 @@ test("feature switches disable only their tools; layout and data actions work", 
   await page
     .getByRole("button", { name: "Check API connection", exact: true })
     .click();
-  await expect(page.getByText(/Configuration checked:/)).toBeVisible();
+  await expect(page.locator(".connection-badge")).toHaveText(
+    "Currently unavailable",
+  );
   await page.getByRole("tab", { name: "Layout & data", exact: true }).click();
   await page.evaluate(() => {
     localStorage.setItem(
@@ -209,24 +215,28 @@ test("live candles change in place, append bars, pause, refresh and resume witho
   await fixtures(page);
   let calls = 0;
   const start = Math.floor(Date.now() / 300000) * 300000 - 600000;
-  await page.route("**/gecko/**/ohlcv/**", (route) => {
+  await page.route("**/candle/**", (route) => {
     const url = new URL(route.request().url());
-    const before = url.searchParams.has("before_timestamp");
+    const before = url.searchParams.has("to");
     if (!before) calls++;
     const n = calls;
     const last = start + (n >= 3 ? 300000 : 0);
     return route.fulfill({
       json: {
-        data: {
-          attributes: {
-            ohlcv_list: before
-              ? []
-              : Array.from({ length: n >= 3 ? 41 : 40 }, (_, i) => {
-                  const close = i === 0 ? 1 + n * 0.001 : 1;
-                  return [last - i * 300000, 1, 1.1, 0.9, close, 1000 + n];
-                }),
-          },
-        },
+        success: true,
+        chain: "solana",
+        mint: url.pathname.split("/").at(-2),
+        interval: url.searchParams.get("interval"),
+        source: "birdeye",
+        volumeUnit: "token",
+        candles: before ? [] : Array.from({ length: n >= 3 ? 41 : 40 }, (_, i) => ({
+          time: (last - i * 300000) / 1000,
+          open: 1,
+          high: 1.1,
+          low: 0.9,
+          close: i === 0 ? 1 + n * 0.001 : 1,
+          volume: 1000 + n,
+        })),
       },
     });
   });
@@ -245,12 +255,12 @@ test("live candles change in place, append bars, pause, refresh and resume witho
     if (frame === page.mainFrame()) navigations++;
   });
   await page.clock.install();
-  await page.clock.fastForward(6000);
+  await page.clock.fastForward(16000);
   await expect(page.locator(".sol-chart")).toHaveAttribute(
     "data-last-close",
     "1.002",
   );
-  await page.clock.fastForward(6000);
+  await page.clock.fastForward(16000);
   await expect(page.locator(".sol-chart")).toHaveAttribute(
     "data-candle-count",
     "41",
@@ -276,7 +286,7 @@ test("live candles change in place, append bars, pause, refresh and resume witho
     "true",
   );
 });
-test("Astra scenario is opt-in, separate from candles, clearable and abortable", async ({
+test("Fable 5.2 scenario is opt-in, separate from candles, clearable and abortable", async ({
   page,
 }) => {
   await fixtures(page);
@@ -309,7 +319,17 @@ test("Astra scenario is opt-in, separate from candles, clearable and abortable",
           hypothetical: true,
           anchor: { t, price },
           points: Array.from({ length: request.steps }, (_, i) => ({
-            t: t + (i + 1) * 300000,
+            t:
+              t +
+              (i + 1) *
+                ({
+                  "1m": 60000,
+                  "5m": 300000,
+                  "15m": 900000,
+                  "1h": 3600000,
+                  "4h": 14400000,
+                  "1d": 86400000,
+                }[request.interval as string] || 300000),
             price: price * (1 + (i + 1) / 1000),
           })),
           explanation:
@@ -326,13 +346,31 @@ test("Astra scenario is opt-in, separate from candles, clearable and abortable",
   await enter(page);
   await choose(page);
   await expect(page.locator(".chart-scenario")).toHaveCount(0);
-  await settings(page, "Features & Astra");
+  await settings(page, "Features & Fable 5.2");
   await page
-    .getByRole("switch", { name: "Enable Astra chart scenarios", exact: true })
+    .getByRole("switch", {
+      name: "Enable Fable 5.2 chart scenarios",
+      exact: true,
+    })
     .check();
-  await page.getByLabel("Astra scenario horizon").selectOption("12");
+  await page.getByLabel("Fable 5.2 scenario horizon").selectOption("12");
   expect(calls).toBe(0);
   await back(page);
+  const scenarioGated = await page.evaluate(async () => {
+    const path = "/src/services/backend/config.ts";
+    return (await import(/* @vite-ignore */ path)).tailBackendEnabled();
+  });
+  if (scenarioGated) {
+    // The standalone/server adapter intentionally gates chart scenarios; enabling
+    // the preference must not bypass that gate or issue any model request.
+    await expect(page.locator(".chart-scenario")).toHaveCount(0);
+    expect(calls).toBe(0);
+    await settings(page, "Features & Fable 5.2");
+    await page.getByRole("switch", { name: "Enable Fable 5.2 chart scenarios", exact: true }).uncheck();
+    await back(page);
+    await expect(page.locator(".chart-scenario")).toHaveCount(0);
+    return;
+  }
   await expect(
     page.getByRole("button", { name: "Generate scenario", exact: true }),
   ).toBeEnabled();
@@ -385,9 +423,12 @@ test("Astra scenario is opt-in, separate from candles, clearable and abortable",
     "Source snapshot unavailable",
   );
   await expect(page.locator(".scenario-detail")).toHaveCount(0);
-  await settings(page, "Features & Astra");
+  await settings(page, "Features & Fable 5.2");
   await page
-    .getByRole("switch", { name: "Enable Astra chart scenarios", exact: true })
+    .getByRole("switch", {
+      name: "Enable Fable 5.2 chart scenarios",
+      exact: true,
+    })
     .uncheck();
   await back(page);
   await expect(page.locator(".chart-scenario")).toHaveCount(0);
@@ -400,7 +441,7 @@ test("each settings section fits a mobile screen", async ({ page }) => {
   for (const section of [
     "Appearance",
     "Chart & live data",
-    "Features & Astra",
+    "Features & Fable 5.2",
     "Connections",
     "Layout & data",
   ]) {

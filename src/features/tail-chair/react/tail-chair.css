@@ -1,0 +1,7 @@
+/* Component-local only. Keep the site's existing design and layout. */
+.tail-chair-mascot{position:relative;width:100%;max-width:760px;aspect-ratio:900/780;isolation:isolate;contain:layout;}
+.tail-chair-mascot__canvas,.tail-chair-mascot__poster{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;}
+.tail-chair-mascot__canvas{cursor:pointer;touch-action:pan-y;border-radius:20px;}
+.tail-chair-mascot__canvas:focus-visible{outline:2px solid #ff872f;outline-offset:5px;}
+.tail-chair-mascot__poster{pointer-events:none;}
+@media(prefers-reduced-motion:reduce){.tail-chair-mascot__canvas{transition:none!important;}}

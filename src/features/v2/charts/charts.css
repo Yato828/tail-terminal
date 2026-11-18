@@ -1,0 +1,30 @@
+.v2-chart-workbench { min-width: 0; }
+.v2-chart-workbench-controls,.v2-chart-slot-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 0; }
+.v2-chart-workbench label,.v2-chart-workbench-controls label { display:inline-flex; align-items:center; gap:5px; font-size:11px; }
+.v2-chart-workbench input:not([type=checkbox]) { border:1px solid var(--edge,#342d28); background:var(--panel,#181512); color:inherit; padding:7px; min-width:0; }
+.v2-chart-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
+.v2-chart-grid.multiple { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.v2-chart-slot { min-width:0; border:1px solid var(--edge,#342d28); padding:8px; }
+.v2-chart-slot .sol-chart { min-width:0; }
+.v2-chart-search { width:100%; margin:4px 0; }
+.v2-chart-search input { flex:1; }
+.v2-chart-search-results { display:flex; flex-wrap:wrap; gap:6px; }
+.sol-chart:fullscreen { overflow:auto; width:100vw; height:100vh; padding:12px; background:var(--panel,#181512); }
+.sol-chart:fullscreen .chart-surface { height:65vh; }
+.chart-indicators input,.chart-range-tools button { accent-color:var(--accent,#ff963b); }
+.chart-range-tools button { margin:4px; }
+.chart-indicators p,.chart-range-tools p { padding:4px 8px; }
+@media(max-width:1000px) { .v2-chart-grid.multiple { grid-template-columns:minmax(0,1fr); } }
+/* Keep expanded controls inside existing terminal columns and narrow widgets. */
+.sol-chart.sol-chart > .chart-toolbar { height:auto; min-height:43px; flex-wrap:wrap; padding-top:5px; padding-bottom:5px; }
+.sol-chart .chart-options { flex-wrap:wrap; min-width:0; }
+.sol-chart .chart-legend { height:auto; min-height:40px; flex-wrap:wrap; padding-top:5px; padding-bottom:5px; }
+.sol-chart .chart-bottom { flex-wrap:wrap; }
+.sol-chart .chart-bottom > div { display:flex; flex-wrap:wrap; gap:5px; }
+.sol-chart.expanded { overflow:auto; }
+.v2-chart-slot .chart-options { margin-left:0; }
+@media(max-width:540px) { .sol-chart .chart-toolbar button { padding:5px 7px; } .sol-chart .chart-options { gap:2px; } .sol-chart .candle-key { flex-wrap:wrap; } }
+.v2-chart-workbench { color:var(--text,var(--tail-text,#e5e0db)); background:var(--panel,var(--tail-secondary,#181512)); font:13px/1.45 "Instrument Sans",Arial,sans-serif; }
+.v2-chart-workbench-controls button,.v2-chart-slot-controls button,.v2-chart-search-results button { color:inherit; font:inherit; background:var(--panel,#181512); border:1px solid var(--edge,#342d28); border-radius:6px; padding:5px 8px; cursor:pointer; }
+.v2-chart-workbench button:disabled { opacity:.45; cursor:default; }
+.v2-chart-workbench input[type=checkbox] { accent-color:var(--accent,#ff963b); }

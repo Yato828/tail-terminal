@@ -6,6 +6,8 @@ export type HolderSnapshot = {
   holders: TokenHolder[];
   source: "Solana RPC" | "RugCheck";
   fetchedAt: number;
+  /** Provider balance observation time, distinct from local fetch time. */
+  observedAt?: number | null;
   accountCount: number;
   partial: boolean;
   supply?: number;
@@ -53,7 +55,7 @@ export async function fetchHolderSnapshot(
     if (!accounts.length) throw new Error("RPC returned no largest accounts");
     const owners = await rpc<{
       value: Array<{
-        data?: { parsed?: { info?: { owner?: string } } };
+        data?: { parsed?: { info?: { owner?: string; mint?: string } } };
       } | null>;
     }>(
       "getMultipleAccounts",
@@ -65,7 +67,9 @@ export async function fetchHolderSnapshot(
     );
     const rows = accounts.map((a, i) => ({
       ...a,
-      owner: owners.value[i]?.data?.parsed?.info?.owner,
+      owner: owners.value[i]?.data?.parsed?.info?.mint === mint
+        ? owners.value[i]?.data?.parsed?.info?.owner
+        : undefined,
     }));
     const holders = indexedHolders(rows);
     if (!holders.length)
@@ -74,6 +78,7 @@ export async function fetchHolderSnapshot(
       holders,
       source: "Solana RPC",
       fetchedAt: Date.now(),
+      observedAt: null,
       accountCount: accounts.length,
       partial: rows.some((r) => !isSolanaAddress(r.owner)),
     };
@@ -107,6 +112,7 @@ export async function fetchHolderSnapshot(
       holders,
       source: "RugCheck",
       fetchedAt: Date.now(),
+      observedAt: null,
       accountCount: rows.length,
       partial: rows.some((r) => !isSolanaAddress(r.owner)),
       ...(Number.isFinite(supply) && supply > 0 ? { supply } : {}),

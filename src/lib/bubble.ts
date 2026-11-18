@@ -30,6 +30,10 @@ export type BubbleGraph = {
   kind?: "holders" | "traders";
   source?: string;
   notice?: string;
+  fetchedAt?: number;
+  observedAt?: number | null;
+  sampleSupplyPct?: number | null;
+  accountCount?: number;
 };
 
 const ZERO = "11111111111111111111111111111111";
@@ -195,6 +199,7 @@ export async function fetchBubbleGraph(
   const running = graphPending.get(key);
   if (running) return running;
   const job = (async (): Promise<BubbleGraph> => {
+    let holderError = "";
     if (mode !== "traders") {
       try {
         const snapshot = await fetchHolderSnapshot(token, force);
@@ -202,9 +207,17 @@ export async function fetchBubbleGraph(
           ...buildBubbleGraph(snapshot.holders, [], []),
           kind: "holders",
           source: snapshot.source,
+          fetchedAt: snapshot.fetchedAt,
+          observedAt: snapshot.observedAt ?? null,
+          accountCount: snapshot.accountCount,
+          sampleSupplyPct: snapshot.supply && snapshot.supply > 0 ? snapshot.holders.reduce((sum, h) => sum + Number(h.value), 0) / snapshot.supply * 100 : null,
           notice: `${snapshot.source} · largest-account owners · % of displayed balances, not total supply. ${snapshot.source === "RugCheck" ? "Indexed snapshot; balance timestamp not supplied. " : ""}No inferred transfer links.`,
         };
-      } catch {
+      } catch (error) {
+        holderError =
+          error instanceof Error
+            ? error.message
+            : "Holder sources unavailable.";
         /* Explicit Traders fallback is labeled below. */
       }
       if (mode === "holders")
@@ -214,7 +227,20 @@ export async function fetchBubbleGraph(
     }
     if (!isPoolAddr(pool))
       throw new Error("Select a pool to load wallet activity.");
-    const trades = await fetchTrades(pool, token);
+    let trades;
+    try {
+      trades = await fetchTrades(pool, token);
+    } catch (error) {
+      throw new Error(
+        [
+          holderError,
+          "Trader source unavailable: " +
+            (error instanceof Error ? error.message : "No indexed trades"),
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+    }
     const wallets = new Map<string, BubbleNode>();
     for (const trade of trades) {
       if (
@@ -244,6 +270,8 @@ export async function fetchBubbleGraph(
       links: [],
       kind: "traders",
       source: "GeckoTerminal trades",
+      fetchedAt: Date.now(),
+      observedAt: trades.length ? Math.max(...trades.map(t => Date.parse(t.timestamp)).filter(Number.isFinite)) || null : null,
       notice:
         mode === "auto"
           ? "Holder data unavailable — showing recent traders. Bubble size = sampled trade volume, not token holdings."

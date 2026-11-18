@@ -1,3 +1,4 @@
+import { readLocal, saveLocal } from "../lib/validation";
 import { EXPLORER } from "../lib/const";
 import { fmtPct, fmtQty, shortAddr } from "../lib/format";
 import {
@@ -45,6 +46,12 @@ export function BubbleMap({
   symbol?: string;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [count, setCount] = useState<10 | 20>(20);
+  const [details, setDetails] = useState<BubbleNode | null>(null);
+  const [viewNotice, setViewNotice] = useState("");
+  const savedLayout = useRef<Record<string, {x:number;y:number;z:number}>>({});
+  const storageKey = `tail.v2.bubble:${token ?? ""}`;
   const [graph, setGraph] = useState<BubbleGraph>({ nodes: [], links: [] });
   const [status, setStatus] = useState<"idle" | "load" | "ready" | "error">(
     "idle",
@@ -70,6 +77,15 @@ export function BubbleMap({
   } | null>(null);
 
   useEffect(() => {
+    const saved = readLocal(storageKey, (raw) => raw && typeof raw === "object" ? raw as {camera?:Cam;nodes?:Record<string,{x:number;y:number;z:number}>} : null, null);
+    const v = saved?.camera;
+    if (v && [v.yaw,v.pitch,v.zoom,v.panX,v.panY].every(Number.isFinite)) cam.current = {...v, zoom: Math.max(.45,Math.min(2.6,v.zoom))};
+    else cam.current = {yaw:.35,pitch:.18,zoom:1,panX:0,panY:0};
+    savedLayout.current = saved?.nodes ?? {};
+    setDetails(null);
+  }, [storageKey]);
+
+  useEffect(() => {
     if (!token && !pool) {
       setGraph({ nodes: [], links: [] });
       setStatus("idle");
@@ -84,19 +100,30 @@ export function BubbleMap({
     void fetchBubbleGraph(token, pool, mode, retry > 0)
       .then((g) => {
         if (!live) return;
-        setGraph(g);
+        const nodes = g.nodes.slice(0,count).map(n => ({...n}));
+        const total = nodes.reduce((sum,n) => sum + n.size,0);
+        nodes.forEach(n => n.share = total > 0 ? n.size / total : 0);
+        const ids = new Set(nodes.map(n => n.id));
+        setGraph({...g,nodes,links:g.links.filter(l => ids.has(l.source) && ids.has(l.target))});
         setStatus("ready");
       })
       .catch((e) => {
         if (live) {
           setError(e instanceof Error ? e.message : "Wallet data unavailable");
+          setGraph({
+            nodes: [],
+            links: [],
+            kind: mode === "traders" ? "traders" : "holders",
+            notice:
+              "Wallet sources unavailable for this selection. No balances, PnL or transfer links have been inferred.",
+          });
           setStatus("error");
         }
       });
     return () => {
       live = false;
     };
-  }, [token, pool, mode, retry]);
+  }, [token, pool, mode, retry, count]);
 
   useEffect(() => {
     const c = ref.current;
@@ -125,7 +152,9 @@ export function BubbleMap({
         const cz = Math.sin(a) * R;
         const cy = ((ci % 3) - 1) * 36;
         (groups.get(cl) ?? []).forEach((n, i) => {
-          const old = prev.get(n.id);
+          const saved = savedLayout.current[n.id];
+          const validSaved = saved && [saved.x,saved.y,saved.z].every(Number.isFinite) ? saved : undefined;
+          const old = prev.get(n.id) ?? validSaved;
           const jitter = 28 + (n.share ?? 0) * 40;
           out.push({
             ...n,
@@ -135,7 +164,7 @@ export function BubbleMap({
             vx: 0,
             vy: 0,
             vz: 0,
-            pinned: old?.pinned ?? false,
+            pinned: old && "pinned" in old ? old.pinned === true : !!validSaved,
           });
         });
       });
@@ -350,6 +379,7 @@ export function BubbleMap({
       }
       const over = hitAt(x, y);
       hover.current = over?.id ?? null;
+      setDetails(current => current?.id === over?.id ? current : over ?? null);
       const d = drag.current;
       if (!d) return;
       const dx = e.clientX - d.lastX;
@@ -366,6 +396,9 @@ export function BubbleMap({
         n.x += dx * k * cy;
         n.z += dx * k * sy;
         n.y += dy * k;
+      } else if (d.orbit && e.shiftKey) {
+        cam.current.panX += dx;
+        cam.current.panY += dy;
       } else if (d.orbit) {
         cam.current.yaw += dx * 0.008;
         cam.current.pitch = Math.max(
@@ -385,7 +418,7 @@ export function BubbleMap({
       }
       if (d?.id) {
         const n = nodesRef.current.find((q) => q.id === d.id);
-        if (n) n.pinned = false;
+        if (n) n.pinned = true;
       }
       drag.current = null;
     };
@@ -600,7 +633,7 @@ export function BubbleMap({
   }, [graph]);
 
   return (
-    <div className="bubble-module">
+    <div className="bubble-module" ref={containerRef} style={{background:"var(--surface, #100d0b)",overflow:"auto"}}>
       <div className="bubble-toolbar">
         <b>
           {graph.kind === "traders" ? "Trader wallets" : "Token holders"}{" "}
@@ -617,6 +650,10 @@ export function BubbleMap({
             </button>
           ))}
         </div>
+        <label style={{fontSize:11}}>Owners <select aria-label="Displayed wallet count" value={count} onChange={e=>setCount(Number(e.target.value) as 10|20)}><option value="10">10</option><option value="20">20</option></select></label>
+        <button onClick={()=>{if(document.fullscreenElement)void document.exitFullscreen();else void containerRef.current?.requestFullscreen().catch(()=>setViewNotice("Fullscreen unavailable in this browser."));}}>Fullscreen</button>
+        <button onClick={()=>{const nodes=Object.fromEntries(nodesRef.current.map(n=>[n.id,{x:n.x,y:n.y,z:n.z}]));nodesRef.current.forEach(n=>n.pinned=true);savedLayout.current=nodes;setViewNotice(saveLocal(storageKey,{camera:cam.current,nodes})?"Camera and layout saved in this browser.":"Browser storage unavailable.");}}>Save map</button>
+        <button disabled={!graph.links.length} title={graph.links.length?"Verified transfer relationships":"Transfer history unavailable; no inferred relationships"}>Relationships {graph.links.length?`(${graph.links.length})`:"unavailable"}</button>
         <button
           disabled={!token || status === "load"}
           onClick={() => setRetry((n) => n + 1)}
@@ -627,6 +664,9 @@ export function BubbleMap({
           title="Reset map view"
           onClick={() => {
             cam.current = { yaw: 0.35, pitch: 0.18, zoom: 1, panX: 0, panY: 0 };
+            savedLayout.current = {};
+            nodesRef.current.forEach(n => n.pinned = false);
+            saveLocal(storageKey, null);
           }}
         >
           Reset
@@ -662,9 +702,13 @@ export function BubbleMap({
           </div>
         )}
         <div className="bubble-hint">
-          Drag to orbit · scroll to zoom · click a wallet to explore
+          Drag to orbit · shift-drag to pan · scroll to zoom · click a wallet to explore
         </div>
       </div>
+      {details && <div className="bubble-source"><a href={`${EXPLORER}/account/${details.id}`} target="_blank" rel="noopener noreferrer">{details.id} ↗</a><span>{fmtQty(details.size)} {graph.kind==="traders"?"sampled USD traded":"sampled tokens"} · {(details.share*100).toFixed(2)}% of displayed balances</span></div>}
+      {viewNotice && <p role="status" style={{fontSize:11,padding:"0 10px"}}>{viewNotice}</p>}
+      <div className="bubble-source"><span>Fetched {graph.fetchedAt?new Date(graph.fetchedAt).toLocaleString():"Unknown"} · Source balance/activity time {graph.observedAt?new Date(graph.observedAt).toLocaleString():"Unknown"}. Largest-account sample: {graph.accountCount??"not available"} accounts; sample / supply: {graph.sampleSupplyPct==null?"Unknown":`${graph.sampleSupplyPct.toFixed(2)}%`}. Pool and custody owners may be included.</span></div>
+      <details style={{padding:"6px 10px",fontSize:11}}><summary>Displayed {graph.kind==="traders"?"trader":"owner"} addresses and concentration</summary>{graph.nodes.map(n=><div key={n.id} style={{display:"flex",justifyContent:"space-between",gap:8,padding:4}}><a href={`${EXPLORER}/account/${n.id}`} target="_blank" rel="noopener noreferrer" title={n.id}>{shortAddr(n.id)}{n.id===pool?" · selected pool":""} ↗</a><span>{fmtQty(n.size)} · {(n.share*100).toFixed(2)}% displayed</span></div>)}</details>
       <div className="bubble-source">
         <b>{graph.source ?? "Solana"}</b>
         <span>

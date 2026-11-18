@@ -1,0 +1,83 @@
+{
+  "version": "1.0.0",
+  "canvas": {
+    "width": 900,
+    "height": 780
+  },
+  "sourceOffset": {
+    "x": 45,
+    "y": 45
+  },
+  "sourceSize": [
+    810,
+    670
+  ],
+  "headPivot": [
+    463,
+    327
+  ],
+  "handPivot": [
+    505,
+    433
+  ],
+  "layers": {
+    "base": {
+      "file": "base.png",
+      "x": 101,
+      "y": 278,
+      "width": 654,
+      "height": 352
+    },
+    "head": {
+      "file": "head.png",
+      "x": 293,
+      "y": 34,
+      "width": 346,
+      "height": 307
+    },
+    "hand": {
+      "file": "hand.png",
+      "x": 418,
+      "y": 376,
+      "width": 102,
+      "height": 65
+    },
+    "laptop": {
+      "file": "laptop.png",
+      "x": 171,
+      "y": 292,
+      "width": 329,
+      "height": 175
+    },
+    "eye-left": {
+      "file": "eye-left.png",
+      "x": 395,
+      "y": 207,
+      "width": 38,
+      "height": 64
+    },
+    "eye-right": {
+      "file": "eye-right.png",
+      "x": 484,
+      "y": 220,
+      "width": 41,
+      "height": 66
+    }
+  },
+  "eyes": [
+    {
+      "name": "eye-left",
+      "center": [
+        414.0,
+        239.0
+      ]
+    },
+    {
+      "name": "eye-right",
+      "center": [
+        504.5,
+        253.0
+      ]
+    }
+  ]
+}

@@ -1,8 +1,20 @@
 import { partFetch } from "../../lib/http";
 import { sessionId } from "./client";
 import { IV_MS } from "../../lib/axiom";
+import { fableErrorMessage } from "../../lib/assistantIdentity";
 import type { ChartScenario, ScenarioRequest } from "./scenario";
 export async function requestScenario(
+  request: ScenarioRequest,
+  signal: AbortSignal,
+): Promise<ChartScenario> {
+  try {
+    return await readScenario(request, signal);
+  } catch (error) {
+    if (signal.aborted) throw error;
+    throw new Error(fableErrorMessage(error));
+  }
+}
+async function readScenario(
   request: ScenarioRequest,
   signal: AbortSignal,
 ): Promise<ChartScenario> {
@@ -16,7 +28,7 @@ export async function requestScenario(
     signal: AbortSignal.any([signal, AbortSignal.timeout(50000)]),
   });
   if (!response.headers.get("content-type")?.includes("application/json"))
-    throw new Error("Astra scenario server is unavailable.");
+    throw new Error("Fable 5.2 scenario server is unavailable.");
   const body = await response.json();
   if (!response.ok)
     throw new Error(

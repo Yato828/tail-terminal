@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { tailBackendEnabled } from "../services/backend/config";
+import { AssistantName, useProductBrand } from "../design-system/brand";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { mascot } from "../mascot/events";
 import {
+  AreaSeries,
   CandlestickSeries,
   ColorType,
   CrosshairMode,
@@ -20,7 +24,14 @@ import {
   normalizeCandles,
   type Candle,
   type Interval,
+  type CandleResult,
 } from "../lib/axiom";
+import {
+  allHistoryRange,
+  collectOlderHistory,
+  historyIdentity,
+  overviewInterval,
+} from "../lib/chartHistory";
 import { chartPrecision, chartPrice } from "../lib/chartFormat";
 import { errorMessage } from "../lib/validation";
 import { fmtQty } from "../lib/format";
@@ -39,6 +50,13 @@ import {
   type SpotTick,
   type StreamStatus,
 } from "../lib/poolStream";
+import {publishMarketSpot,publishMarketStreamStatus} from '../features/v2/market/live';
+import "../features/v2/charts/charts.css";
+import { heikinAshi } from "../features/v2/charts/math";
+import { IndicatorControls } from "../features/v2/charts/IndicatorControls";
+import { useIndicators } from "../features/v2/charts/useIndicators";
+import {useChartEvents,EventControls} from '../features/v2/charts/EventControls';
+import { CHART_COMMAND_EVENT, CHART_CROSSHAIR_EVENT, CHART_MODES, CHART_RANGE_EVENT, downloadChartJson, getChartData, loadChartSettings, publishChartContext, removeChartContext, saveChartSettings, type ChartCommand, type ChartMode } from "../features/v2/charts/state";
 const tint = (hex: string) =>
   `rgba(${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)},0.35)`;
 export function Chart({
@@ -48,6 +66,11 @@ export function Chart({
   priceUsd = 0,
   mcap,
   onSpot,
+  onHistoryUnavailable,
+  createdAt,
+  chartId = "primary",
+  settingsKey,
+  syncGroup,
 }: {
   pool: string;
   token: string;
@@ -55,11 +78,36 @@ export function Chart({
   priceUsd?: number;
   mcap?: number;
   onSpot?: (tick: SpotTick | null) => void;
+  onHistoryUnavailable?: (interval: string, code?: string) => void;
+  createdAt?: number;
+  chartId?: string;
+  settingsKey?: string;
+  syncGroup?: string;
 }) {
+  const brand = useProductBrand();
+  const storageKey = settingsKey ?? chartId;
+  const [chartReady, setChartReady] = useState(false);
+  const [saved] = useState(() => loadChartSettings(storageKey));
+  const unavailableRef = useRef(onHistoryUnavailable);
+  unavailableRef.current = onHistoryUnavailable;
   const { preferences: p, update } = usePreferences();
-  const [iv, setIv] = useState<Interval>(p.defaultInterval),
-    [mode, setMode] = useState<"price" | "mcap">("price");
-  const [log, setLog] = useState(false),
+  const [iv, setIv] = useState<Interval>(() =>
+      saved.interval ?? overviewInterval(createdAt, p.defaultInterval),
+    ),
+    [mode, setMode] = useState<"price" | "mcap">(saved.priceMode ?? "price");
+  const [chartStyle, setChartStyle] = useState<ChartMode>(saved.chartMode);
+  const [indicators, setIndicators] = useState(saved.indicators);
+  const [volumeOverride, setVolumeOverride] = useState(saved.showVolume);
+  const showVolume = volumeOverride ?? p.showVolume;
+  const [rangeSelecting, setRangeSelecting] = useState(false);
+  const [selectedRange, setSelectedRange] = useState<number[]>([]);
+  const rangeSelectingRef = useRef(false), rangeRef = useRef<number[]>([]);
+  rangeSelectingRef.current = rangeSelecting;
+  rangeRef.current = selectedRange;
+  const syncRef = useRef(syncGroup), syncApplying = useRef(false), chartIdRef = useRef(chartId);
+  syncRef.current = syncGroup;
+  chartIdRef.current = chartId;
+  const [log, setLog] = useState(saved.log),
     [expanded, setExpanded] = useState(false),
     [bars, setBars] = useState<Candle[]>([]),
     [hover, setHover] = useState<Candle | null>(null);
@@ -69,6 +117,11 @@ export function Chart({
     [paging, setPaging] = useState(false),
     [retry, setRetry] = useState(0),
     [source, setSource] = useState(""),
+    [sourceNote, setSourceNote] = useState(""),
+    [historyLimited, setHistoryLimited] = useState(false),
+    [scope, setScope] = useState<"pool" | "token">("pool"),
+    [volumeUnit, setVolumeUnit] = useState<"usd" | "token">("usd"),
+    [viewMode, setViewMode] = useState<"all" | "recent" | "custom">("all"),
     [at, setAt] = useState(0),
     [now, setNow] = useState(Date.now());
   const [scenario, setScenario] = useState<ChartScenario | null>(null),
@@ -79,12 +132,27 @@ export function Chart({
     [feed, setFeed] = useState<StreamStatus | null>(null),
     [reconnect, setReconnect] = useState(0);
   const spotRef = useRef<SpotCandle | null>(null);
-  const visibleBars = useMemo(() => withSpotCandle(bars, spot), [bars, spot]);
+  const visibleBars = useMemo(
+    () => (scope === "token" ? bars : withSpotCandle(bars, spot)),
+    [bars, spot, scope],
+  );
+  const sourceResult = useRef<CandleResult | null>(null),
+    sourceKey = useRef(""),
+    fullRun = useRef(0),
+    autoHistory = useRef(false),
+    viewModeRef = useRef(viewMode);
+  viewModeRef.current = viewMode;
+  const fullHistory = useRef<(initial?: CandleResult) => void>(() => {});
+  const root = useRef<HTMLDivElement>(null);
   const container = useRef<HTMLDivElement>(null),
     chart = useRef<IChartApi | null>(null),
     series = useRef<ISeriesApi<"Candlestick"> | null>(null),
     volume = useRef<ISeriesApi<"Histogram"> | null>(null),
+    priceLine = useRef<ISeriesApi<"Line"> | null>(null),
+    areaLine = useRef<ISeriesApi<"Area"> | null>(null),
     projection = useRef<ISeriesApi<"Line"> | null>(null);
+  const sourceBarsRef = useRef<Candle[]>([]);
+  sourceBarsRef.current = bars;
   const barsRef = useRef<Candle[]>([]),
     drawn = useRef<{ bars: Candle[]; multiplier: number; colors: string }>({
       bars: [],
@@ -101,7 +169,13 @@ export function Chart({
     refreshVersion = useRef(-1);
   barsRef.current = visibleBars;
   const multiplier =
-    mode === "mcap" && mcap && priceUsd > 0 ? mcap / priceUsd : 1;
+    mode === "mcap" && mcap && mcap > 0 && Number.isFinite(mcap) && priceUsd > 0 && Number.isFinite(priceUsd) ? mcap / priceUsd : 1;
+  const indicatorData = useIndicators(chart, bars, indicators, volumeUnit, multiplier, showVolume, chartReady);
+  const chartEvents=useChartEvents({mint:token,bars,interval:iv,series:chartStyle==='line'?priceLine:chartStyle==='area'?areaLine:series,ready:chartReady});
+  useEffect(() => { saveChartSettings(storageKey, { version: 1, chartMode: chartStyle, priceMode: mode, interval: iv, log, showVolume: volumeOverride, indicators }); }, [storageKey, chartStyle, mode, iv, log, volumeOverride, indicators]);
+  useEffect(() => {
+    if (mode === "mcap" && (!mcap || mcap <= 0 || !Number.isFinite(mcap) || priceUsd <= 0 || !Number.isFinite(priceUsd))) setMode("price");
+  }, [mode, mcap, priceUsd]);
   const theme = THEME[p.theme];
   const changeView = (action: () => void) => {
     programmaticView.current = true;
@@ -112,14 +186,44 @@ export function Chart({
     });
   };
   const recentView = () => {
+    fullRun.current++;
+    pageLock.current = false;
+    setPaging(false);
+    setViewMode("recent");
+    viewModeRef.current = "recent";
     const length = barsRef.current.length;
     if (length)
       changeView(() =>
         chart.current?.timeScale().setVisibleLogicalRange({
-          from: Math.max(0, length - p.visibleCandles),
+          from: length - p.visibleCandles,
           to: length + (scenario ? p.scenarioSteps + 2 : 5),
         }),
       );
+  };
+  const fitAll = (length = barsRef.current.length) => {
+    if (length)
+      changeView(() =>
+        chart.current
+          ?.timeScale()
+          .setVisibleLogicalRange(allHistoryRange(length)),
+      );
+  };
+  const changeInterval = (value: Interval) => {
+    fullRun.current++;
+    setViewMode("recent");
+    viewModeRef.current = "recent";
+    setIv(value);
+  };
+  const showAll = () => {
+    setViewMode("all");
+    viewModeRef.current = "all";
+    const next = overviewInterval(createdAt, iv);
+    if (next !== iv) {
+      setIv(next);
+      return;
+    }
+    fitAll();
+    fullHistory.current();
   };
   useEffect(() => {
     if (!container.current) return;
@@ -143,6 +247,7 @@ export function Chart({
         timeVisible: true,
         secondsVisible: false,
         rightOffset: 5,
+        minBarSpacing: 0.05,
         shiftVisibleRangeOnNewBar: p.followLatest,
       },
       localization: { locale: "en-US" },
@@ -155,6 +260,14 @@ export function Chart({
       wickUpColor: p.upColor,
       wickDownColor: p.downColor,
     });
+    const closeLine = api.addSeries(LineSeries, {
+      color: p.upColor,
+      lineWidth: 2,
+      visible: false,
+      title: "Source close",
+    });
+    priceLine.current = closeLine;
+    areaLine.current = api.addSeries(AreaSeries, { lineColor: p.upColor, topColor: tint(p.upColor), bottomColor: "rgba(0,0,0,0)", lineWidth: 2, visible: false, title: "Source close area" });
     const vols = api.addSeries(HistogramSeries, {
       priceScaleId: "volume",
       priceFormat: { type: "volume" },
@@ -165,7 +278,7 @@ export function Chart({
       .priceScale()
       .applyOptions({ scaleMargins: { top: 0.82, bottom: 0 }, visible: false });
     const path = api.addSeries(LineSeries, {
-      color: "#a78bfa",
+      color: "#ff963b",
       lineWidth: 2,
       lineStyle: LineStyle.Dashed,
       lastValueVisible: false,
@@ -174,22 +287,41 @@ export function Chart({
       title: "AI scenario · hypothetical",
     });
     chart.current = api;
+    setChartReady(true);
     series.current = candles;
     volume.current = vols;
     projection.current = path;
     api.subscribeCrosshairMove((param) => {
       if (!param.time || !param.point) {
         setHover(null);
+        if (syncRef.current && !syncApplying.current) window.dispatchEvent(new CustomEvent(CHART_CROSSHAIR_EVENT, { detail: { chartId: chartIdRef.current, group: syncRef.current, time: null } }));
         return;
       }
+      if (syncRef.current && !syncApplying.current) window.dispatchEvent(new CustomEvent(CHART_CROSSHAIR_EVENT, { detail: { chartId: chartIdRef.current, group: syncRef.current, time: Number(param.time) } }));
       setHover(
         barsRef.current.find((b) => b.t === Number(param.time) * 1000) ?? null,
       );
     });
+    api.subscribeClick(param => {
+      if (!rangeSelectingRef.current || !param.time) return;
+      const time = Number(param.time) * 1000;
+      // Selection may only anchor on actual source candles, never scenarios/spot.
+      if (!sourceBarsRef.current.some(b => b.t === time)) return;
+      setSelectedRange(old => old.length === 1 ? [Math.min(old[0], time), Math.max(old[0], time)] : [time]);
+      if (rangeRef.current.length === 1) setRangeSelecting(false);
+    });
     api.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      if (range) {
+        container.current?.setAttribute(
+          "data-visible-from",
+          String(range.from),
+        );
+        container.current?.setAttribute("data-visible-to", String(range.to));
+      }
       if (
         range &&
         range.from < 2 &&
+        viewModeRef.current === "custom" &&
         !firstDraw.current &&
         !programmaticView.current
       )
@@ -200,6 +332,8 @@ export function Chart({
       chart.current = null;
       series.current = null;
       volume.current = null;
+      priceLine.current = null;
+      areaLine.current = null;
       projection.current = null;
       scenarioAbort.current?.abort();
       cancelAnimationFrame(viewFrame.current);
@@ -220,7 +354,7 @@ export function Chart({
       },
       rightPriceScale: {
         borderColor: theme.edge,
-        scaleMargins: { top: 0.08, bottom: p.showVolume ? 0.23 : 0.07 },
+        scaleMargins: { top: 0.08, bottom: showVolume ? 0.23 : 0.07 },
       },
       timeScale: {
         borderColor: theme.edge,
@@ -240,12 +374,12 @@ export function Chart({
       wickUpColor: p.upColor,
       wickDownColor: p.downColor,
     });
-    volume.current?.applyOptions({ visible: p.showVolume });
+    volume.current?.applyOptions({ visible: showVolume });
   }, [
     p.theme,
     p.upColor,
     p.downColor,
-    p.showVolume,
+    showVolume,
     p.showGrid,
     p.showCrosshair,
     p.hollowCandles,
@@ -254,18 +388,32 @@ export function Chart({
   ]);
   useEffect(() => {
     generation.current++;
+    fullRun.current++;
+    autoHistory.current = false;
+    sourceResult.current = null;
+    sourceKey.current = "";
     pageLock.current = false;
     firstDraw.current = true;
     drawn.current = { bars: [], multiplier: 1, colors: "" };
     barsRef.current = [];
     setBars([]);
     setHover(null);
+    setSelectedRange([]);
+    setRangeSelecting(false);
     setSource("");
+    setScope("pool");
+    setVolumeUnit("usd");
+    setSourceNote("");
+    setHistoryLimited(false);
     setAt(0);
     setHistoryNote("");
     setError("");
     setBusy(true);
     setPaging(false);
+    return () => {
+      generation.current++;
+      fullRun.current++;
+    };
   }, [pool, token, iv]);
   useEffect(() => {
     spotRef.current = null;
@@ -290,6 +438,8 @@ export function Chart({
         commitment: p.streamCommitment,
         endpoint: p.streamEndpoint,
         onStatus: (next) => {
+          if(disposed)return;
+          publishMarketStreamStatus(token,pool,next);
           setFeed(next);
           if (next.state === "reconnecting") {
             spotRef.current = null;
@@ -299,6 +449,7 @@ export function Chart({
         },
         onTick: (next) => {
           if (disposed) return;
+          publishMarketSpot(token,pool,next);
           latest = next;
           spotRef.current = observeSpot(
             spotRef.current,
@@ -353,14 +504,22 @@ export function Chart({
     let stopped = false,
       inFlight = false,
       failures = 0;
+    let announce = true;
+    let motionRequest: string | null = null;
     let timer: ReturnType<typeof setTimeout>;
     const run = async () => {
       if (stopped || inFlight) return;
+      if (pageLock.current) {
+        timer = setTimeout(run, p.refreshSeconds * 1000);
+        return;
+      }
       if (document.hidden) {
         if (p.liveUpdates) timer = setTimeout(run, p.refreshSeconds * 1000);
         return;
       }
       inFlight = true;
+      if (announce && brand.product === "TAIL" && !motionRequest)
+        motionRequest = mascot.begin("analyzing", "chart");
       try {
         const result = await loadCandleResult(
           pool,
@@ -371,16 +530,52 @@ export function Chart({
           retry ? 0 : p.refreshSeconds * 1000 - 100,
         );
         if (!stopped) {
-          setBars((old) => mergeSourceCandles(old, result.bars));
+          const identity = historyIdentity(result),
+            sameSource = !sourceKey.current || sourceKey.current === identity;
+          if (!sameSource) {
+            firstDraw.current = true;
+            autoHistory.current = false;
+          }
+          sourceKey.current = identity;
+          sourceResult.current = result;
+          setBars((old) =>
+            sameSource ? mergeSourceCandles(old, result.bars) : result.bars,
+          );
+          setScope(result.scope ?? "pool");
+          setVolumeUnit(result.volumeUnit ?? "usd");
           setSource(result.source);
+          setSourceNote(result.warning ?? "");
+          setHistoryLimited(result.historyLimited === true);
           setAt(result.fetchedAt);
           setError("");
           failures = 0;
+          if (announce && brand.product === "TAIL")
+            mascot.end(motionRequest, "idle");
+          announce = false;
+          if (
+            viewModeRef.current === "all" &&
+            result.paging &&
+            !result.historyLimited &&
+            !autoHistory.current
+          ) {
+            autoHistory.current = true;
+            fullHistory.current(result);
+          }
         }
       } catch (e) {
         if (!stopped) {
           setError(errorMessage(e));
+          if (announce)
+            unavailableRef.current?.(
+              iv,
+              e && typeof e === "object" && "code" in e
+                ? String(e.code)
+                : undefined,
+            );
           failures++;
+          if (announce && brand.product === "TAIL")
+            mascot.end(motionRequest, "error");
+          announce = false;
         }
       } finally {
         inFlight = false;
@@ -413,6 +608,7 @@ export function Chart({
       stopped = true;
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", resume);
+      if (brand.product === "TAIL") mascot.end(motionRequest, "cancel");
     };
   }, [pool, token, iv, retry, p.liveUpdates, p.refreshSeconds]);
   useEffect(() => {
@@ -429,6 +625,22 @@ export function Chart({
         formatter: (n: number) => chartPrice(n, precision),
       },
     });
+    priceLine.current?.applyOptions({
+      color: p.upColor,
+      priceFormat: {
+        type: "custom",
+        minMove: 10 ** -precision,
+        formatter: (n: number) => chartPrice(n, precision),
+      },
+    });
+    areaLine.current?.applyOptions({ lineColor: p.upColor, topColor: tint(p.upColor), priceFormat: { type: "custom", minMove: 10 ** -precision, formatter: (n: number) => chartPrice(n, precision) } });
+    areaLine.current?.setData(visibleBars.map(b => ({ time: Math.floor(b.t / 1000) as UTCTimestamp, value: b.c * multiplier })));
+    priceLine.current?.setData(
+      visibleBars.map((b) => ({
+        time: Math.floor(b.t / 1000) as UTCTimestamp,
+        value: b.c * multiplier,
+      })),
+    );
     const candle = (b: Candle) => ({
       time: Math.floor(b.t / 1000) as UTCTimestamp,
       open: b.o * multiplier,
@@ -441,11 +653,13 @@ export function Chart({
       value: b.v,
       color: tint(b.c >= b.o ? p.upColor : p.downColor),
     });
-    const colors = `${p.upColor}:${p.downColor}`;
+    const colors = `${p.upColor}:${p.downColor}:${chartStyle}`;
+    const displayBars = chartStyle === "heikin" ? heikinAshi(visibleBars) : visibleBars;
     const previous = drawn.current;
     if (
       previous.multiplier === multiplier &&
       previous.colors === colors &&
+      chartStyle !== "heikin" &&
       canUpdateTail(previous.bars, visibleBars)
     ) {
       for (const b of visibleBars.slice(
@@ -456,16 +670,34 @@ export function Chart({
       }
     } else {
       candles.setData(
-        visibleBars.map(candle) as CandlestickData<UTCTimestamp>[],
+        displayBars.map(candle) as CandlestickData<UTCTimestamp>[],
       );
       vols.setData(visibleBars.map(vol));
     }
     drawn.current = { bars: visibleBars, multiplier, colors };
     if (visibleBars.length && firstDraw.current) {
-      recentView();
+      if (viewModeRef.current === "all") fitAll(visibleBars.length);
+      else
+        changeView(() =>
+          chart.current?.timeScale().setVisibleLogicalRange({
+            from: visibleBars.length - p.visibleCandles,
+            to: visibleBars.length + 5,
+          }),
+        );
       firstDraw.current = false;
+    } else if (
+      visibleBars.length &&
+      viewModeRef.current === "all" &&
+      previous.bars.length !== visibleBars.length
+    ) {
+      fitAll(visibleBars.length);
     }
-  }, [visibleBars, multiplier, p.upColor, p.downColor]);
+  }, [visibleBars, multiplier, p.upColor, p.downColor, chartStyle]);
+  useEffect(() => {
+    series.current?.applyOptions({ visible: chartStyle === "candles" || chartStyle === "heikin" });
+    priceLine.current?.applyOptions({ visible: chartStyle === "line" });
+    areaLine.current?.applyOptions({ visible: chartStyle === "area" });
+  }, [chartStyle]);
   useEffect(() => {
     chart.current?.priceScale("right").applyOptions({
       mode: log ? PriceScaleMode.Logarithmic : PriceScaleMode.Normal,
@@ -511,15 +743,87 @@ export function Chart({
       ),
     );
   }, [scenario, p.aiScenario, scenarioEnded, multiplier]);
+  fullHistory.current = async (requested) => {
+    const initial = requested ?? sourceResult.current;
+    if (!initial || pageLock.current) return;
+    if (initial.historyLimited) {
+      setHistoryNote("This source limits history to 24h.");
+      return;
+    }
+    pageLock.current = true;
+    setPaging(true);
+    setHistoryNote("Loading available history…");
+    const version = generation.current,
+      request = ++fullRun.current;
+    const cancelled = () =>
+      version !== generation.current || request !== fullRun.current;
+    try {
+      const result = await collectOlderHistory(
+        {
+          ...initial,
+          bars:
+            !requested && barsRef.current.length
+              ? barsRef.current
+              : initial.bars,
+        },
+        (before) => loadCandleResult(pool, iv, token, before),
+        {
+          maxPages: 8,
+          cancelled,
+          onPage: (rows) => {
+            if (!cancelled()) {
+              setBars(rows);
+              if (viewModeRef.current === "all")
+                requestAnimationFrame(() => {
+                  if (!cancelled() && viewModeRef.current === "all")
+                    fitAll(rows.length);
+                });
+            }
+          },
+        },
+      );
+      if (!cancelled()) {
+        setBars(result.bars);
+        if (viewModeRef.current === "all")
+          requestAnimationFrame(() => {
+            if (!cancelled() && viewModeRef.current === "all")
+              fitAll(result.bars.length);
+          });
+        setHistoryNote(
+          result.stopped === "limit"
+            ? "Loaded 8 history pages. Older history can continue loading; coverage depends on the source."
+            : "Source returned no older candles in the queried window. Gaps are preserved.",
+        );
+      }
+    } catch (e) {
+      if (!cancelled()) setHistoryNote(errorMessage(e));
+    } finally {
+      if (!cancelled()) {
+        pageLock.current = false;
+        setPaging(false);
+      }
+    }
+  };
   page.current = async () => {
-    if (pageLock.current || busy || !barsRef.current.length) return;
+    if (pageLock.current || busy || historyLimited || !barsRef.current.length)
+      return;
     pageLock.current = true;
     setPaging(true);
     const version = generation.current,
+      request = ++fullRun.current,
       first = barsRef.current[0].t;
+    const cancelled = () =>
+      version !== generation.current || request !== fullRun.current;
     try {
       const result = await loadCandleResult(pool, iv, token, first - 1);
-      if (version !== generation.current) return;
+      if (cancelled()) return;
+      if (
+        sourceResult.current &&
+        historyIdentity(sourceResult.current) !== historyIdentity(result)
+      )
+        throw new Error(
+          "Historical source or volume units changed. Reload the chart to keep series separate.",
+        );
       const older = result.bars.filter((b) => b.t < first);
       if (!older.length)
         setHistoryNote("No earlier history returned by connected sources.");
@@ -527,19 +831,20 @@ export function Chart({
         const range = chart.current?.timeScale().getVisibleLogicalRange();
         setBars((old) => normalizeCandles([...older, ...old]));
         if (range)
-          requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            if (cancelled()) return;
             changeView(() =>
               chart.current?.timeScale().setVisibleLogicalRange({
                 from: range.from + older.length,
                 to: range.to + older.length,
               }),
-            ),
-          );
+            );
+          });
       }
     } catch (e) {
-      if (version === generation.current) setHistoryNote(errorMessage(e));
+      if (!cancelled()) setHistoryNote(errorMessage(e));
     } finally {
-      if (version === generation.current) {
+      if (!cancelled()) {
         pageLock.current = false;
         setPaging(false);
       }
@@ -583,11 +888,54 @@ export function Chart({
       !!error ||
       (p.liveUpdates &&
         at > 0 &&
-        now - at > Math.max(30000, p.refreshSeconds * 3000));
+        now - at >
+          Math.max(historyLimited ? 90000 : 30000, p.refreshSeconds * 3000));
+  useEffect(() => {
+    publishChartContext({ chartId, mint: token, pool, symbol, interval: iv, chartMode: chartStyle, priceMode: mode,
+      indicators: indicators.enabled, source, fetchedAt: at || null, lastCandleAt: bars.at(-1)?.t ?? null,
+      stale: !at || stale, scope, volumeUnit, candleCount: bars.length }, bars);
+  }, [chartId, token, pool, symbol, iv, chartStyle, mode, indicators, source, at, stale, scope, volumeUnit, bars]);
+  useEffect(() => () => removeChartContext(chartId), [chartId]);
+  useEffect(() => {
+    const command = (event: Event) => {
+      const d = (event as CustomEvent<ChartCommand>).detail;
+      if (!d || typeof d !== "object" || (d.chartId ? d.chartId !== chartId : chartId !== "primary")) return;
+      if (d.interval && CANDLE_IVS.includes(d.interval)) changeInterval(d.interval);
+      if (d.chartMode && CHART_MODES.includes(d.chartMode)) setChartStyle(d.chartMode);
+    };
+    window.addEventListener(CHART_COMMAND_EVENT, command);
+    return () => window.removeEventListener(CHART_COMMAND_EVENT, command);
+  }, [chartId]);
+  useEffect(() => {
+    const sync = (event: Event) => {
+      const d = (event as CustomEvent<{ chartId: string; group: string; time: number | null }>).detail;
+      if (!d || d.chartId === chartId || !syncGroup || d.group !== syncGroup) return;
+      syncApplying.current = true;
+      if (d.time === null) chart.current?.clearCrosshairPosition();
+      else {
+        const bar = barsRef.current.find(b => Math.floor(b.t / 1000) === d.time);
+        if (bar && series.current) chart.current?.setCrosshairPosition(bar.c * multiplier, d.time as UTCTimestamp, chartStyle === "line" ? priceLine.current! : chartStyle === "area" ? areaLine.current! : series.current);
+        else chart.current?.clearCrosshairPosition();
+      }
+      syncApplying.current = false;
+    };
+    window.addEventListener(CHART_CROSSHAIR_EVENT, sync);
+    return () => window.removeEventListener(CHART_CROSSHAIR_EVENT, sync);
+  }, [chartId, syncGroup, multiplier, chartStyle]);
   return (
     <div
+      ref={root}
+      data-chart-id={chartId}
+      data-interval={iv}
+      data-chart-mode={chartStyle}
+      data-crosshair-time={hover?.t ?? ""}
+      data-indicator-series={Object.entries(indicatorData).map(([key, points]) => `${key}:${points.length}`).join(",")}
       className={`sol-chart${expanded ? " expanded" : ""}`}
       data-candle-count={bars.length}
+      data-history-view={viewMode}
+      data-history-scope={scope}
+      data-volume-unit={volumeUnit}
+      data-first-candle={bars[0]?.t ?? ""}
       data-last-candle={bars.at(-1)?.t ?? ""}
       data-last-close={bars.at(-1)?.c ?? ""}
       data-live-price={tick?.price ?? ""}
@@ -601,7 +949,7 @@ export function Chart({
             <button
               key={value}
               className={iv === value ? "selected" : ""}
-              onClick={() => setIv(value)}
+              onClick={() => changeInterval(value)}
             >
               {value}
             </button>
@@ -609,28 +957,52 @@ export function Chart({
         </div>
         <div className="chart-options">
           <button
+            aria-pressed={chartStyle === "candles"}
+            onClick={() => setChartStyle("candles")}
+          >
+            Candles
+          </button>
+          <button
+            aria-pressed={chartStyle === "line"}
+            onClick={() => setChartStyle("line")}
+          >
+            Line
+          </button>
+          <button aria-pressed={chartStyle === "area"} onClick={() => setChartStyle("area")}>Area</button>
+          <button aria-pressed={chartStyle === "heikin"} onClick={() => setChartStyle("heikin")}>Heikin Ashi</button>
+          <button
             className={mode === "price" ? "selected" : ""}
             onClick={() => setMode("price")}
           >
             Price
           </button>
           <button
-            disabled={!mcap || priceUsd <= 0}
+            disabled={!mcap || mcap <= 0 || !Number.isFinite(mcap) || priceUsd <= 0 || !Number.isFinite(priceUsd)}
             className={mode === "mcap" ? "selected" : ""}
             onClick={() => setMode("mcap")}
           >
             MCap est.
           </button>
           <button aria-pressed={log} onClick={() => setLog((v) => !v)}>
-            Log
+            {log ? "Log" : "Linear"}
           </button>
-          <button onClick={recentView}>Latest</button>
+          <button aria-pressed={showVolume} onClick={() => setVolumeOverride(v => !(v ?? p.showVolume))}>Volume</button>
+          <button onClick={() => {
+            if (document.fullscreenElement) void document.exitFullscreen?.();
+            else if (root.current?.requestFullscreen) void root.current.requestFullscreen().catch(() => setExpanded(true));
+            else setExpanded(true);
+          }}>Fullscreen</button>
           <button
-            title="Fit all loaded history"
-            onClick={() =>
-              changeView(() => chart.current?.timeScale().fitContent())
-            }
+            onClick={showAll}
+            aria-pressed={viewMode === "all"}
+            title="Load all available source history; overview interval adapts to market age"
           >
+            All
+          </button>
+          <button onClick={recentView} aria-pressed={viewMode === "recent"}>
+            Latest
+          </button>
+          <button title="Fit all loaded history" onClick={() => fitAll()}>
             Fit
           </button>
           <button
@@ -645,6 +1017,7 @@ export function Chart({
         <b>
           {symbol} / {mode === "mcap" ? "MCap est. USD" : "USD"}
         </b>
+        {chartStyle === "heikin" && <span>Heikin Ashi · derived view · OHLC legend is source</span>}
         {shown && (
           <span className="candle-key">
             <span>O {chartPrice(shown.o * multiplier)}</span>
@@ -653,11 +1026,11 @@ export function Chart({
             <span className={shown.c >= shown.o ? "up" : "dn"}>
               C {chartPrice(shown.c * multiplier)}
             </span>
-            {p.showVolume && (
+            {showVolume && (
               <span>
                 {spot?.t === shown.t && !bars.some((b) => b.t === shown.t)
                   ? "V pending source"
-                  : `V ${fmtQty(shown.v)} USD`}
+                  : `V ${fmtQty(shown.v)} ${volumeUnit === "usd" ? "USD" : symbol || "tokens"}`}
               </span>
             )}
           </span>
@@ -670,18 +1043,28 @@ export function Chart({
         >
           {!p.liveUpdates
             ? "Paused"
-            : p.streamPrices && feed?.state === "live" && spotFresh
-              ? `LIVE · ${p.streamCommitment}`
-              : p.streamPrices && feed?.state !== "unsupported"
-                ? "Waiting · WSS"
-                : `${stale ? "Delayed" : "Auto"} · ${p.refreshSeconds}s`}
+            : scope === "token"
+              ? "Indexed · 15s"
+              : p.streamPrices && feed?.state === "live" && spotFresh
+                ? `LIVE · ${p.streamCommitment}`
+                : p.streamPrices && feed?.state !== "unsupported"
+                  ? "Waiting · WSS"
+                  : `${stale ? "Delayed" : "Auto"} · ${p.refreshSeconds}s`}
         </button>
       </div>
       <div className="chart-frame">
         <div
           className="chart-surface chart-native"
           ref={container}
-          aria-label={`${symbol} candlestick and volume chart`}
+          onPointerDown={() => {
+            setViewMode("custom");
+            viewModeRef.current = "custom";
+          }}
+          onWheel={() => {
+            setViewMode("custom");
+            viewModeRef.current = "custom";
+          }}
+          aria-label={`${symbol} ${chartStyle === "heikin" ? "derived Heikin Ashi" : chartStyle} and source volume chart`}
         />
         {!bars.length && (
           <div className="chart-state" role="status">
@@ -696,9 +1079,16 @@ export function Chart({
                 : error || "No historical candles returned."}
             </span>
             {!busy && (
-              <button onClick={() => setRetry((n) => n + 1)}>
-                Retry candle source
-              </button>
+              <>
+                <button onClick={() => setRetry((n) => n + 1)}>
+                  Retry candle source
+                </button>
+                {iv !== "1h" && (
+                  <button onClick={() => changeInterval("1h")}>
+                    Load available 1h history
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -746,10 +1136,25 @@ export function Chart({
       )}
       <div className="chart-bottom">
         <span>
-          {source || "Waiting for source"} ·{" "}
-          {at ? new Date(at).toISOString() : "No data"}
+          {source || "Waiting for source"}
+          {scope === "token" ? " · token-wide" : ""} ·{" "}
+          {at ? `${new Date(at).toISOString()} · fetched ${Math.max(0, Math.floor((now - at) / 1000))}s ago` : "No data"}
         </span>
         <div>
+          {paging && (
+            <button
+              onClick={() => {
+                fullRun.current++;
+                pageLock.current = false;
+                setPaging(false);
+                setHistoryNote(
+                  "History loading stopped. Loaded candles are retained.",
+                );
+              }}
+            >
+              Stop loading history
+            </button>
+          )}
           <button
             onClick={() => {
               setHistoryNote("");
@@ -764,14 +1169,23 @@ export function Chart({
             Refresh
           </button>
           <button
-            disabled={paging || busy || !bars.length}
+            disabled={paging || busy || !bars.length || historyLimited}
+            title={
+              historyLimited
+                ? "Keyless source covers the last 24h; older history requires an indexer API key"
+                : undefined
+            }
             onClick={() => {
               setHistoryNote("");
               pageLock.current = false;
               void page.current();
             }}
           >
-            {paging ? "Loading…" : "Older history"}
+            {historyLimited
+              ? "24h history limit"
+              : paging
+                ? "Loading…"
+                : "Older history"}
           </button>
           <a
             href={`https://dexscreener.com/solana/${pool}`}
@@ -782,16 +1196,27 @@ export function Chart({
           </a>
         </div>
       </div>
+      {!!bars.length && bars.length < 3 && iv !== "1m" && (
+        <p className="chart-history-limit">
+          Few candles at {iv}.{" "}
+          <button onClick={() => changeInterval("1m")}>Show 1m</button>
+        </p>
+      )}
+      {historyLimited && (
+        <p className="chart-history-limit">
+          Last 24h · observed hourly candles · partial edge bars
+        </p>
+      )}
       {historyNote && (
         <p className="data-note" role="status">
           {historyNote}
         </p>
       )}
-      {p.aiScenario && (
+      {p.aiScenario && !tailBackendEnabled() && (
         <div className="chart-scenario">
           <div>
             <b>
-              <i /> Astra scenario <small>HYPOTHETICAL</small>
+              <i /> <AssistantName /> scenario <small>HYPOTHETICAL</small>
             </b>
             <span>
               One possible path over {p.scenarioSteps} intervals. Unvalidated
@@ -804,12 +1229,12 @@ export function Chart({
               title={
                 bars.length < 20
                   ? "At least 20 real source candles are required"
-                  : "Request one hypothetical path from Astra"
+                  : `Request one hypothetical path from ${brand.assistant}`
               }
               onClick={() => void generate()}
             >
               {scenarioBusy
-                ? "Astra is drawing…"
+                ? `${brand.assistant} is drawing…`
                 : scenario
                   ? "Regenerate scenario"
                   : "Generate scenario"}
@@ -855,24 +1280,43 @@ export function Chart({
           )}
         </div>
       )}
-      <p className="chart-help">
-        Drag to pan · scroll to zoom · OHLC in UTC.{" "}
-        {p.liveUpdates
-          ? `Source candles update automatically every ${p.refreshSeconds}s; provider delays may apply.`
-          : "Auto updates paused."}{" "}
-        {mode === "mcap"
-          ? "Historical market cap estimates use current implied supply; supply changes are not reconstructed."
-          : "Historical candles from source; gaps are not filled."}{" "}
-        {p.streamPrices &&
-          "Live candle overlay uses observed pool spot at browser receipt time, not executed trade OHLC. Processed state may roll back. Volume comes only from the historical source. "}
-        <a
-          href="https://www.tradingview.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          TradingView Lightweight Charts
-        </a>
-      </p>
+      <IndicatorControls value={indicators} onChange={setIndicators} volumeUnit={volumeUnit} counts={indicatorData} />
+      <EventControls state={chartEvents}/>
+      <details className="chart-disclosure chart-range-tools"><summary>Explain This Move · source range</summary>
+        <button onClick={() => { setSelectedRange([]); setRangeSelecting(v => !v); }} aria-pressed={rangeSelecting}>{rangeSelecting ? "Cancel range selection" : "Select range on chart"}</button>
+        <button disabled={!bars.length} onClick={() => { if (bars.length) setSelectedRange([bars[Math.max(0, bars.length - 100)].t, bars.at(-1)!.t]); }}>Use latest 100 source candles</button>
+        <p role="status">{rangeSelecting ? selectedRange.length === 1 ? "Click the ending candle." : "Click the starting source candle, then the ending candle." : selectedRange.length === 2 ? `${new Date(selectedRange[0]).toISOString()} → ${new Date(selectedRange[1]).toISOString()}` : "Choose an actual OHLC range. No trades or causal events are inferred."}</p>
+        <button disabled={selectedRange.length !== 2} onClick={() => { const data = getChartData(chartId, { from: selectedRange[0], to: selectedRange[1], maxBars: 500 }); if (data) downloadChartJson(`tail-${symbol || 'chart'}-source-range.json`, data); }}>Export source OHLCV range</button>
+        <button disabled={selectedRange.length !== 2} onClick={() => { const data = getChartData(chartId, { from: selectedRange[0], to: selectedRange[1], maxBars: 200 }); if (data) window.dispatchEvent(new CustomEvent(CHART_RANGE_EVENT, { detail: data })); }}>Explain selected move</button>
+        <p className="chart-help">Export up to 500 source candles; assistant context up to 200. Provisional spot, derived candles and hypothetical scenarios are excluded. Explanation availability depends on configured Fable; correlation does not prove cause.</p>
+      </details>
+      <details className="chart-disclosure">
+        <summary>Source details & chart controls</summary>
+        {sourceNote && <p className="data-note">{sourceNote}</p>}
+        <p className="chart-help">
+          Drag to pan · scroll to zoom · OHLC in UTC.{" "}
+          {p.liveUpdates
+            ? historyLimited
+              ? "Hourly history refreshes every 60s; live pool spot is separate."
+              : `Source candles update automatically every ${p.refreshSeconds}s; provider delays may apply.`
+            : "Auto updates paused."}{" "}
+          {mode === "mcap"
+            ? "Historical market cap estimates use current implied supply; supply changes are not reconstructed."
+            : "Historical candles from source; gaps are not filled."}{" "}
+          {scope === "token" &&
+            "Token-wide source candles and volumes are separate from the selected pool's spot feed. "}
+          {p.streamPrices &&
+            scope === "pool" &&
+            "Live candle overlay uses observed pool spot at browser receipt time, not executed trade OHLC. Processed state may roll back. Volume comes only from the historical source. "}
+          <a
+            href="https://www.tradingview.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            TradingView Lightweight Charts
+          </a>
+        </p>
+      </details>
     </div>
   );
 }

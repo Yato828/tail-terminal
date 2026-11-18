@@ -30,13 +30,19 @@ export default defineConfig(({ mode }) => {
           const out = resolve(root, "dist-ext");
           mkdirSync(out, { recursive: true });
           cpSync(
-            resolve(root, "public/favicon.png"),
-            resolve(out, "favicon.png"),
+            resolve(root, "extension/README.txt"),
+            resolve(out, "README.txt"),
+          );
+          cpSync(
+            resolve(root, "public/tail-mascot"),
+            resolve(out, "tail-mascot"),
+            { recursive: true },
           );
           cpSync(
             resolve(root, "extension/manifest.json"),
             resolve(out, "manifest.json"),
           );
+          cpSync(resolve(root, "extension/background.js"), resolve(out, "background.js"));
           mkdirSync(resolve(out, "icons"), { recursive: true });
           for (const size of ["16", "32", "48", "128"]) {
             cpSync(
@@ -51,6 +57,8 @@ export default defineConfig(({ mode }) => {
     publicDir: false,
     define: {
       "import.meta.env.VITE_PART_SHELL": JSON.stringify("ext"),
+      "import.meta.env.VITE_TAIL_API_URL": JSON.stringify(""),
+      "import.meta.env.VITE_TAIL_STANDALONE": JSON.stringify("1"),
     },
     server: {
       cors: false,

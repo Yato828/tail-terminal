@@ -60,7 +60,7 @@ function DocsBody() {
   return (
     <div className="sheet-body">
       <p className="sheet-lead">
-        Terminal for Solana. <b>Astra</b> is the built-in assistant; server
+        Terminal for Solana. <b>Fable 5.2</b> is the built-in assistant; server
         configuration is required.
       </p>
 
@@ -108,7 +108,7 @@ function DocsBody() {
       </section>
 
       <section>
-        <h3>Astra</h3>
+        <h3>Fable 5.2</h3>
         <p>
           Contextual assistant with read-only Solana tools when configured.
           Local market briefs are labeled separately.

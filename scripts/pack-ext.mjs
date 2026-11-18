@@ -91,5 +91,6 @@ function zipFolder(root, outFile) {
 }
 
 mkdirSync("public", { recursive: true });
-zipFolder("dist-ext", "public/part-ext.zip");
-console.log("packed public/part-ext.zip");
+zipFolder("dist-ext", "public/tail-extension.zip");
+writeFileSync("public/part-ext.zip",readFileSync("public/tail-extension.zip"));
+console.log("packed public/tail-extension.zip (plus the compatible part-ext.zip link)");

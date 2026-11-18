@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { loadEnv } from "vite";
-import { defineConfig, type Plugin, type ProxyOptions } from "vitest/config";
+import { loadEnv, type Plugin, type ProxyOptions } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { handleAstra } from "./src/server/astra";
+import capabilities from "./api/v2/capabilities";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
@@ -26,6 +27,14 @@ function withUa(extra: ProxyOptions = {}): ProxyOptions {
 }
 
 export const proxy: Record<string, ProxyOptions> = {
+  "/candle": withUa({
+    target: "https://api.candle.tv",
+    rewrite: (path) => path.replace(/^\/candle/, "/api/v1"),
+  }),
+  "/jupiter": withUa({
+    target: "https://api.jup.ag",
+    rewrite: (path) => path.replace(/^\/jupiter/, ""),
+  }),
   "/rugcheck": withUa({
     target: "https://api.rugcheck.xyz",
     rewrite: (path) => path.replace(/^\/rugcheck/, "/v1"),
@@ -56,10 +65,18 @@ export const proxy: Record<string, ProxyOptions> = {
   }),
 };
 
+/** Keep local/preview API routing identical to the deployed Edge handlers. */
+export async function handleLocalApi(request: Request): Promise<Response> {
+  if (new URL(request.url).pathname === "/api/v2/capabilities")
+    return capabilities(request);
+  return handleAstra(request);
+}
+
 async function fableMiddleware(
   req: IncomingMessage,
   res: ServerResponse,
   next: () => void,
+  fixtureProfile?: string,
 ) {
   const path = req.url?.split("?")[0];
   if (!path?.startsWith("/api/")) {
@@ -102,9 +119,10 @@ async function fableMiddleware(
       duplex: body ? "half" : undefined,
     } as RequestInit,
   );
-  const out = await handleAstra(request);
+  const out = await handleLocalApi(request);
   res.statusCode = out.status;
   out.headers.forEach((v, k) => res.setHeader(k, v));
+  if (fixtureProfile) res.setHeader("X-Tail-CI-Profile", fixtureProfile);
   if (!out.body) {
     res.end();
     return;
@@ -121,27 +139,30 @@ async function fableMiddleware(
   }
 }
 
-export function fablePlugin(): Plugin {
+export function fablePlugin(fixtureProfile?: string): Plugin {
   return {
     name: "fable-api",
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        void fableMiddleware(req, res, next).catch(next);
+        void fableMiddleware(req, res, next, fixtureProfile).catch(next);
       });
     },
-    configurePreview(server) {
+    configurePreviewServer(server) {
       server.middlewares.use((req, res, next) => {
-        void fableMiddleware(req, res, next).catch(next);
+        void fableMiddleware(req, res, next, fixtureProfile).catch(next);
       });
     },
   };
 }
 
 export function loadServerEnv(mode: string) {
+  // Fixture CI servers must not pick up an owner's local provider credentials.
+  if (/^ci-(standalone|legacy|backend-v1)$/.test(mode)) return;
   const env = loadEnv(mode, process.cwd(), "");
   for (const [key, value] of Object.entries(env)) {
     if (
       key === "OPENAI_API_KEY" ||
+      key === "OPENAI_MODEL" ||
       key.startsWith("ASTRA_") ||
       key.startsWith("UPSTASH_")
     )
@@ -151,23 +172,39 @@ export function loadServerEnv(mode: string) {
 
 export default defineConfig(({ mode }) => {
   loadServerEnv(mode);
+  const fixtureProfile = /^ci-(standalone|legacy|backend-v1)$/.test(mode)
+    ? mode.slice(3)
+    : undefined;
+  const localEnv = loadEnv(mode, process.cwd(), "");
+  const integrationProxy = {
+    ...proxy,
+    "/tail-api": withUa({
+      target: localEnv.TAIL_BACKEND_URL || "http://127.0.0.1:8787",
+      rewrite: (path) => path.replace(/^\/tail-api/, "/api"),
+    }),
+  };
   return {
-    plugins: [react(), fablePlugin()],
+    plugins: [react(), fablePlugin(fixtureProfile)],
     server: {
       // The API handler validates exact origins and owns its preflight headers.
       cors: false,
       port: 4664,
-      proxy,
+      proxy: fixtureProfile ? {} : integrationProxy,
       watch: {
         ignored: [
           "**/playwright-report/**",
           "**/test-results/**",
+          "**/.tail-v2-worktrees/**",
+          "**/.tail-v2-baseline/**",
+          "**/artifacts/**",
+          "**/dist/**",
           "**/dist-ext/**",
+          "**/backend/tail-v1/data/**",
           "**/docs/test-artifacts/**",
         ],
       },
     },
-    preview: { port: 4664, proxy, cors: false },
+    preview: { port: 4664, proxy: fixtureProfile ? {} : integrationProxy, cors: false },
     test: {
       include: ["src/**/*.test.ts"],
       testTimeout: 30000,

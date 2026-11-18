@@ -1,10 +1,16 @@
+import { useFableConnection, fableConnectionMessage, prepareFableMessages } from "./useFableConnection";
+import { fableErrorMessage } from "../../lib/assistantIdentity";
+import { useFableContext } from "../v2/fable/context";
+import { FableTools } from "../v2/fable/FableTools";
+import { ProposalReview, FableUsageView } from "../v2/fable/ProposalReview";
+import type { WorkspaceAction } from "../v2/contracts";
+import type { FableUsage } from "../v2/fable/contracts";
 import { useEffect, useRef, useState } from "react";
-import { askAstra, astraStatus } from "./client";
+import { askAstra } from "./client";
 import {
   assistantLabel,
   type ChatMessage,
   type TokenContext,
-  type AstraStatus,
 } from "./types";
 import { errorMessage, readLocal, saveLocal } from "../../lib/validation";
 type Thread = { id: string; name: string; messages: ChatMessage[] };
@@ -59,6 +65,9 @@ export default function AstraChat({
   wallet: string | null;
   onSettings: () => void;
 }) {
+  const [allowPortfolio, setAllowPortfolio] = useState(false), [stream, setStream] = useState(false), [streamDraft, setStreamDraft] = useState("");
+  const [proposals, setProposals] = useState<WorkspaceAction[]>([]), [usage, setUsage] = useState<FableUsage | undefined>();
+  const { context: workspaceContext } = useFableContext(context?.mint ?? null, allowPortfolio);
   const [threads, setThreads] = useState<Thread[]>(() => {
     const saved = readLocal("part.astra.threads.v1", parseThreads, []);
     return saved.length ? saved : [fresh()];
@@ -67,12 +76,20 @@ export default function AstraChat({
   const [input, setInput] = useState("");
   const [attached, setAttached] = useState<TokenContext | null>(context);
   const [attachedWallet, setAttachedWallet] = useState(wallet);
-  const [status, setStatus] = useState<AstraStatus | null>(null);
+  const { status, checking, connectionError, retryConnection } = useFableConnection();
+  const [pendingQuestion, setPendingQuestion] = useState("");
+  const mounted = useRef(true), ime = useRef(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [storageError, setStorageError] = useState(false);
   const [copied, setCopied] = useState(-1);
   const abort = useRef<AbortController | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    const clear = () => { const current = abort.current; abort.current = null; current?.abort(); const next = fresh(); setThreads([next]); setId(next.id); setInput(''); setBusy(false); setPendingQuestion(''); setError(''); setProposals([]); setUsage(undefined); setStreamDraft(''); setAllowPortfolio(false); setAttachedWallet(null); };
+    window.addEventListener('part:clear-data', clear);
+    return () => { mounted.current = false; const current = abort.current; abort.current = null; current?.abort(); window.removeEventListener('part:clear-data', clear); };
+  }, []);
   const thread = threads.find((t) => t.id === id) ?? threads[0];
   const messages = thread.messages;
   useEffect(() => {
@@ -84,68 +101,29 @@ export default function AstraChat({
   useEffect(() => {
     setStorageError(!saveLocal("part.astra.threads.v1", threads));
   }, [threads]);
-  useEffect(() => {
-    const ac = new AbortController();
-    void astraStatus(ac.signal)
-      .then(setStatus)
-      .catch((e) => {
-        if (!ac.signal.aborted) setError(errorMessage(e));
-      });
-    return () => {
-      ac.abort();
-      abort.current?.abort();
-    };
-  }, []);
+  function stopRequest() {
+    const current = abort.current; abort.current = null; current?.abort();
+    setBusy(false); setPendingQuestion(''); setError('Request stopped. Your draft is still here.');
+  }
   const send = async (text: string, base = messages) => {
-    if (!text.trim() || busy) return;
-    const next = [
-      ...base,
-      { role: "user" as const, content: text.trim(), at: Date.now() },
-    ].slice(-23);
-    while (
-      (next.reduce((n, m) => n + m.content.length, 0) > 22000 ||
-        new TextEncoder().encode(JSON.stringify(next)).length > 28000) &&
-      next.length > 1
-    )
-      next.shift();
-    setThreads((ts) =>
-      ts.map((t) => (t.id === thread.id ? { ...t, messages: next } : t)),
-    );
-    setInput("");
-    setError("");
-    setBusy(true);
-    const ac = new AbortController();
-    abort.current = ac;
+    if (!text.trim() || busy || abort.current || ime.current) return;
+    const submitted = text.trim().slice(0, 6000), next = prepareFableMessages(base, submitted), threadId = thread.id;
+    const ac = new AbortController(); abort.current = ac;
+    setInput(value => value.trim() ? value : submitted);
+    setError(''); setBusy(true); setPendingQuestion(submitted); setStreamDraft(''); setProposals([]); setUsage(undefined);
+    const current = () => mounted.current && abort.current === ac && !ac.signal.aborted;
     try {
-      const result = await askAstra(next, attached, ac.signal, attachedWallet);
-      if (!ac.signal.aborted)
-        setThreads((ts) =>
-          ts.map((t) =>
-            t.id === thread.id
-              ? {
-                  ...t,
-                  messages: [
-                    ...next,
-                    {
-                      role: "assistant" as const,
-                      content: result.text,
-                      at: result.at,
-                      model: result.model,
-                    },
-                  ].slice(-24),
-                }
-              : t,
-          ),
-        );
-    } catch (e) {
-      setError(
-        ac.signal.aborted
-          ? "Request stopped. No answer was saved."
-          : errorMessage(e),
-      );
+      const result = await askAstra(next, attached, ac.signal, attachedWallet, { workspaceContext: { ...workspaceContext, mint: attached?.mint ?? null }, stream, onTextDelta: text => { if (current()) setStreamDraft(value => value + text); } });
+      if (current()) {
+        setStreamDraft(''); setProposals(result.proposals ?? []); setUsage(result.usage);
+        if (result.incomplete) setError('Response reached its output limit; this answer may be incomplete.');
+        setThreads(ts => ts.map(t => t.id === threadId ? { ...t, messages: [...next, { role: 'assistant' as const, content: result.text, at: result.at, model: result.model }].slice(-24) } : t));
+        setInput(value => value.trim() === submitted ? '' : value); void retryConnection();
+      }
+    } catch (error) {
+      if (current()) { setError(`${fableErrorMessage(error)} Your draft is still here.`); void retryConnection(); }
     } finally {
-      setBusy(false);
-      abort.current = null;
+      if (mounted.current && abort.current === ac) { abort.current = null; setBusy(false); setPendingQuestion(''); }
     }
   };
   const regenerate = () => {
@@ -157,19 +135,14 @@ export default function AstraChat({
     <section className="tool-page astra-chat">
       <header className="tool-heading">
         <div>
-          <small>PART / SOLANA INTELLIGENCE</small>
           <h1>
             {assistantLabel(
               messages.findLast((m) => m.role === "assistant")?.model,
             )}
           </h1>
-          <p>
-            {status?.ready
-              ? `Configured model: ${status.model} · read-only tools`
-              : (status?.reason ?? "Checking server connection…")}
-          </p>
+          <p>{fableConnectionMessage(status, checking, connectionError)}</p>
         </div>
-        <button onClick={onSettings}>API status ↗</button>
+        <div className="tool-actions"><button type="button" disabled={checking} onClick={() => void retryConnection()}>Retry connection</button><button onClick={onSettings}>Settings ↗</button></div>
       </header>
       <div className="tool-actions">
         <select
@@ -260,6 +233,9 @@ export default function AstraChat({
           </button>
         </div>
       )}
+      <details><summary>Local data tools · no AI required</summary><FableTools coin={null} wallet={wallet ?? undefined} tokenContext={attached} /></details>
+      <div className="fable-v2-options"><label><input type="checkbox" checked={allowPortfolio} onChange={e => setAllowPortfolio(e.target.checked)} />Allow personal portfolio context</label><label><input type="checkbox" checked={stream} onChange={e => setStream(e.target.checked)} />Stream actual provider text</label></div>
+      <p>Chart context: {workspaceContext.interval} · {workspaceContext.chartMode}. No personal balances or history are attached.</p>
       {storageError && (
         <p role="alert">
           Local storage unavailable. This conversation will not survive reload.
@@ -300,6 +276,9 @@ export default function AstraChat({
             <p>{m.content}</p>
           </article>
         ))}
+        {busy && pendingQuestion && <article className="chat-message user"><b>You</b><p>{pendingQuestion}</p><small>Sending · not yet saved</small></article>}
+        {streamDraft && <article className="chat-message assistant"><b>{busy ? "Receiving live response…" : "Incomplete response · not saved"}</b><p>{streamDraft}</p></article>}
+        <ProposalReview proposals={proposals} /><FableUsageView usage={usage} />
       </div>
       <div className="prompt-chips">
         {chips.map((text) => (
@@ -317,33 +296,37 @@ export default function AstraChat({
         className="chat-compose"
         onSubmit={(e) => {
           e.preventDefault();
-          void send(input);
+          if (!ime.current) void send(input);
         }}
       >
         <textarea
-          aria-label="Message Astra"
+          aria-label="Message Fable 5.2"
           maxLength={6000}
           value={input}
+          disabled={busy}
+          onCompositionStart={() => { ime.current = true; }}
+          onCompositionEnd={() => { ime.current = false; }}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask Astra about this market…"
+          placeholder="Ask Fable 5.2 about this market…"
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            if (e.key === "Enter" && !e.shiftKey && !ime.current && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229) {
               e.preventDefault();
-              void send(input);
+              if (!e.repeat) void send(input);
             }
           }}
         />
         <div>
           {busy ? (
             <button
+              key="stop"
               type="button"
               className="primary-action"
-              onClick={() => abort.current?.abort()}
+              onClick={event => { event.preventDefault(); stopRequest(); }}
             >
               Stop generating
             </button>
           ) : (
-            <button className="primary-action" disabled={!input.trim()}>
+            <button key="send" type="submit" className="primary-action" disabled={!input.trim()}>
               Send
             </button>
           )}
@@ -357,10 +340,8 @@ export default function AstraChat({
         </div>
       </form>
       <small className="tool-disclaimer">
-        AI-generated analysis. Verify market data before trading. History stays
-        in this browser; messages and attached context are sent to the
-        configured server and OpenAI when you press Send. Text responses are
-        displayed safely; HTML is never executed.
+        Verify market data before trading. Messages and attached context are
+        sent to Fable 5.2 when you press Send. History is saved in this browser.
       </small>
     </section>
   );

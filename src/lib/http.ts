@@ -50,7 +50,7 @@ const EXT_ROOT: Array<{
   },
 ];
 
-const FABLE_ORIGIN = "https://part-woad.vercel.app";
+const FABLE_ORIGIN = "https://tail-solana-workspace.vercel.app";
 
 function savedBackend(): "hosted" | "local" {
   if (typeof window === "undefined") return "hosted";

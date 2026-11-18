@@ -76,7 +76,7 @@ export function buildScenario(
     r.assumptions.some((a) => typeof a !== "string" || a.length > 400)
   )
     throw new Error(
-      "Astra did not return a valid bounded scenario. Try again.",
+      "Fable 5.2 did not return a valid bounded scenario. Try again.",
     );
   return {
     ...request,

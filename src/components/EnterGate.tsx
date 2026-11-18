@@ -5,11 +5,13 @@ export function EnterGate({
   ready,
   onCovered,
   onDone,
+  brand = "PART",
 }: {
   direction: "enter" | "leave";
   ready: boolean;
   onCovered: () => void;
   onDone: () => void;
+  brand?: string;
 }) {
   const [phase, setPhase] = useState<"cover" | "hold" | "reveal">("cover");
   const [minimumElapsed, setMinimumElapsed] = useState(false);
@@ -84,7 +86,7 @@ export function EnterGate({
           }}
         />
         <div className="gate-copy">
-          <b>PART</b>
+          <b>{brand}</b>
           <em>{label}</em>
         </div>
         <span className="gate-track" aria-hidden="true">

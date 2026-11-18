@@ -1,0 +1,25 @@
+.workspace-studio { color:var(--text,var(--tail-text,#e5e0db)); background:var(--panel,var(--tail-secondary,#181512)); font:13px/1.45 "Instrument Sans",Arial,sans-serif; min-width:0; padding:12px; }
+.workspace-studio * { box-sizing:border-box; }
+.workspace-studio h1 { font-size:22px; margin:0 0 8px; }.workspace-studio p { color:var(--muted,#a79d93); overflow-wrap:anywhere; }
+.workspace-studio button,.workspace-studio input,.workspace-studio select { color:inherit; font:inherit; }
+.workspace-studio button { background:var(--panel,#181512); border:1px solid var(--edge,#342d28); border-radius:6px; padding:6px 9px; cursor:pointer; }
+.workspace-studio button:hover,.workspace-studio button[aria-pressed=true] { border-color:var(--accent,#ff812e); }
+.workspace-studio button:disabled { opacity:.4; cursor:default; }
+.workspace-studio input:not([type=checkbox]):not([type=range]),.workspace-studio select { border:1px solid var(--edge,#342d28); background:var(--bg,#100e0c); padding:7px; border-radius:5px; min-width:0; max-width:100%; }
+.workspace-studio input[type=checkbox],.workspace-studio input[type=range] { accent-color:var(--accent,#ff812e); }
+.studio-controls { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:8px 0; }
+.studio-controls label { display:flex; align-items:center; flex-wrap:wrap; gap:5px; }
+.studio-presets,.studio-groups { border-top:1px solid var(--edge,#342d28); padding:10px 0; }.workspace-studio summary { cursor:pointer; padding:5px 0; color:var(--text,#e5e0db); }
+.studio-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:12px; }
+.studio-instance { min-width:0; min-height:320px; max-height:1200px; overflow:hidden; display:flex; flex-direction:column; border:1px solid var(--edge,#342d28); border-radius:8px; background:var(--bg,#100e0c); }
+.studio-instance:focus-visible { outline:2px solid var(--accent,#ff812e); outline-offset:2px; }
+.studio-pinned { border-color:var(--accent,#ff812e); }.studio-instance-header { display:flex; align-items:center; flex-wrap:wrap; gap:5px; padding:8px; border-bottom:1px solid var(--edge,#342d28); flex-shrink:0; }
+.studio-instance-header h2 { font-size:13px; margin:0; flex:1; min-width:100px; }.studio-instance-header h2 small { display:block; font-size:10px; color:var(--muted,#a79d93); font-weight:400; }
+.studio-instance-header button { padding:4px 6px; font-size:11px; }.studio-drag { touch-action:none; cursor:grab!important; }
+.studio-instance-body { overflow:auto; flex:1; min-height:0; padding:8px; overscroll-behavior:contain; }.studio-instance-settings { border-bottom:1px solid var(--edge,#342d28); margin-bottom:8px; }.studio-instance-settings p { font-size:11px; }
+.studio-instance .tool-page { padding:8px; min-width:0; }.studio-instance .tool-form { grid-template-columns:minmax(0,1fr); }.studio-instance .sol-chart { min-width:0; }
+.studio-instance.studio-maximized { position:fixed; inset:12px; width:auto; height:auto!important; max-height:none; z-index:900; resize:none!important; box-shadow:0 0 0 30px #000b; }
+.studio-token-picker { padding:8px 0; }.studio-token-picker form { display:flex; align-items:end; gap:6px; flex-wrap:wrap; }.studio-token-picker label { display:flex; flex-direction:column; gap:5px; min-width:0; }.studio-token-picker code { display:block; margin:5px 0; font-size:11px; overflow-wrap:anywhere; }.studio-token-results { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.studio-evidence-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }.studio-evidence-grid div { border:1px solid var(--edge,#342d28); padding:8px; overflow-wrap:anywhere; }.studio-evidence-grid dt { font-size:11px; color:var(--muted,#a79d93); }.studio-evidence-grid dd { font-size:17px; margin:5px 0; }.studio-evidence-grid small { font-size:10px; color:var(--muted,#a79d93); }
+@media(max-width:900px) { .studio-grid { grid-template-columns:minmax(0,1fr); }.studio-instance { grid-column:1!important; }.workspace-studio { padding:8px; } }
+@media(max-width:480px) { .studio-controls label { width:100%; }.studio-controls input:not([type=range]),.studio-controls select { max-width:100%; }.studio-instance-header { gap:4px; }.studio-instance.studio-maximized { inset:5px; }.studio-evidence-grid { grid-template-columns:minmax(0,1fr); } }

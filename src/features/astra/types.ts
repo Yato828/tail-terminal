@@ -1,8 +1,9 @@
-export const ASTRA_NAME = "Astra";
-export const assistantLabel = (servedModel?: string) =>
-  servedModel === "gpt-6-astra" || servedModel?.startsWith("gpt-6-astra-20")
-    ? "ASTRA GPT-6"
-    : ASTRA_NAME;
+import type { WorkspaceAction } from "../v2/contracts";
+import type { FableUsage } from "../v2/fable/contracts";
+import { ASSISTANT_NAME } from "../../lib/assistantIdentity";
+// Keep the old export/API names compatible; the visible identity is always Fable 5.2.
+export const ASTRA_NAME = ASSISTANT_NAME;
+export const assistantLabel = (_servedModel?: string) => ASSISTANT_NAME;
 export type TokenContext = {
   chainId: "solana";
   mint: string;
@@ -24,10 +25,14 @@ export type AstraStatus = {
   social: "not_connected";
   deployment: "disabled";
   rateLimit: "persistent" | "local" | "missing";
+  code?: "ready" | "missing_api_key" | "missing_rate_limiter" | "unreachable";
 };
 export type AstraResult = {
   text: string;
   model: string;
   at: number;
   sources: Array<{ name: string; at: string; ok: boolean }>;
+  proposals?: WorkspaceAction[];
+  usage?: FableUsage;
+  incomplete?: boolean;
 };

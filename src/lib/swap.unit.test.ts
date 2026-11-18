@@ -60,13 +60,13 @@ describe("swap quote validation", () => {
     await expect(quoteSol(USDC, "0.1", 501)).rejects.toThrow("Slippage");
     expect(getJson).not.toHaveBeenCalled();
   });
-  it("rejects expired quotes without building or submitting transactions", async () => {
+  it("rejects every legacy execution before building or submitting transactions", async () => {
     await expect(
       executeSwap(
         { response: {} as never, decimals: 6, createdAt: Date.now() - 60000 },
         () => {},
       ),
-    ).rejects.toThrow("expired");
+    ).rejects.toThrow("quote-only");
     expect(getJson).not.toHaveBeenCalled();
   });
 });
